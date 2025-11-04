@@ -51,7 +51,14 @@ class MaxQuantModule(BasePMultiqcModule):
 
         return bool(self.mq_results)
     
+
     def aggregate_mzqc_data(self) -> list:
+        # extract some parameters
+        mq_version = "NaN"
+        for _, entry in self.mq_results['get_parameter_dicts']['parameters_tb_dict'].items():
+            if str(entry['parameter']).lower() == "version":
+                mq_version = entry['value']
+
         # cv entry for maxquant
         maxquant_mzqc = qc.AnalysisSoftware(accession="MS:1001583", 
                                         name="MaxQuant",
@@ -59,11 +66,10 @@ class MaxQuantModule(BasePMultiqcModule):
                                         version=mq_version, 
                                         uri="https://www.maxquant.org/")
         
-        # teh original filename
+        # the original filename
         input_filename = "fake_filename"        # TODO
         input_file_location = "fake_location"   # TODO
-        mq_version = "FAKE_fix"                 # TODO
-        input_file_raw = qc.InputFile(name=input_filename,location=input_file_location, 
+        input_file_raw = qc.InputFile(name=input_filename, location=input_file_location, 
                                       fileFormat=qc.CvParameter(accession="MS:1000563", name="Thermo RAW format"),
                                       fileProperties=[# here we could add more information, if we had them
                                           ])
@@ -73,8 +79,69 @@ class MaxQuantModule(BasePMultiqcModule):
         run_qualities = []
         quality_metrics = []
         
-        # identified proteins
+        print(f"more DATA INFO: \n\n{self.mq_results['get_parameter_dicts']}")        
+        # self.mq_results        
+        #       'get_parameter_dicts'
+        #       'get_protegroups_dicts'
+        #           'pg_contaminant'
+        #           'pg_intensity_distri'
+        #           'pg_lfq_intensity_distri'
+        #           'raw_intensity_pca'
+        #           'lfq_intensity_pca'
+        #           'protein_summary',
+        #               'num_proteins_identified'       -> "count of identified proteins"
+        #               'num_proteins_quantified'       ->
+        #           'num_pep_per_protein_dict'
+        #       'ms_ms_identified'
+        #           'QC_20140521_1': {'Identified Rate': 36.08},
+        #           'QC_20140521_2': {'Identified Rate': 35.73},
+        #           'QC_20140522_1': {'Identified Rate': 39.67},
+        #           'QC_20140323_1': {'Identified Rate': 44.34}}
+        #       'get_evidence_dicts'
+        #           'top_contaminants'
+        #           'peptide_intensity'
+        #           'charge_counts'
+        #           'modified_percentage'
+        #           'rt_counts'
+        #           'evidence_df'
+        #           'peak_rt'
+        #           'oversampling'
+        #           'uncalibrated_mass_error'
+        #           'calibrated_mass_error'
+        #           'peptide_id_count'
+        #           'protein_group_count'
+        #           'summary_stat'
+        #               'summary_identified_msms_count' ->
+        #               'summary_identified_peptides'   -> "count of identified peptidoforms"
+        #           'maxquant_delta_mass_da'
+        #           'peptides_quant_table'
+        #           'protein_quant_table'
+        #       'get_msms_dicts'
+        #       'get_msms_scans_dicts'
+        #           'ion_injec_time_rt'
+        #           'top_n'
+        #           'top_over_rt'
+        #           'summary_msms_spectra'          -> "number of MS2 spectra"
+        #       'maxquant_heatmap'
+
+        # create units
         metric_unit_count = {"unit_accession": "UO:0000189", "unit_name": "count unit"}
+
+        # number of MS2 spectra
+        qm = qc.QualityMetric(accession="MS:4000060",
+                              name="number of MS2 spectra",
+                              value=self.mq_results["get_msms_scans_dicts"]['summary_msms_spectra'],
+                              unit=metric_unit_count)
+        quality_metrics.append(qm)
+
+        # number of Peptides Identified
+        qm = qc.QualityMetric(accession="MS:1003250",
+                              name="The number of peptidoforms that pass the threshold to be considered identified with sufficient confidence.",
+                              value=self.mq_results["get_evidence_dicts"]['summary_stat']['summary_identified_peptides'],
+                              unit=metric_unit_count)
+        quality_metrics.append(qm)
+
+        # number of identified proteins
         qm = qc.QualityMetric(accession="MS:1002404",
                               name="count of identified proteins",
                               value=self.mq_results["get_protegroups_dicts"]["protein_summary"]["num_proteins_identified"],
