@@ -1,6 +1,8 @@
 import os
 from datetime import datetime
 
+from mzqc import MZQCFile as qc
+
 from pmultiqc.modules.maxquant import (
     maxquant_utils,
     maxquant_io,
@@ -49,11 +51,44 @@ class MaxQuantModule(BasePMultiqcModule):
 
         return bool(self.mq_results)
     
-    def aggregate_mzqc_data(self) -> dict:
-        mzqc_data = {
-            "test": "nothing"
+    def aggregate_mzqc_data(self) -> list:
+        # cv entry for maxquant
+        maxquant_mzqc = qc.AnalysisSoftware(accession="MS:1001583", 
+                                        name="MaxQuant",
+                                        description="MaxQuant is a quantitative proteomics software package designed for analyzing large mass spectrometric data sets. It is specifically aimed at high resolution MS data.",
+                                        version=mq_version, 
+                                        uri="https://www.maxquant.org/")
+        
+        # teh original filename
+        input_filename = "fake_filename"        # TODO
+        input_file_location = "fake_location"   # TODO
+        mq_version = "FAKE_fix"                 # TODO
+        input_file_raw = qc.InputFile(name=input_filename,location=input_file_location, 
+                                      fileFormat=qc.CvParameter(accession="MS:1000563", name="Thermo RAW format"),
+                                      fileProperties=[# here we could add more information, if we had them
+                                          ])
+        
+        meta = qc.MetaDataParameters(inputFiles=[input_file_raw], analysisSoftware=[maxquant_mzqc])
+
+        run_qualities = []
+        quality_metrics = []
+        
+        # identified proteins
+        metric_unit_count = {"unit_accession": "UO:0000189", "unit_name": "count unit"}
+        qm = qc.QualityMetric(accession="MS:1002404",
+                              name="count of identified proteins",
+                              value=self.mq_results["get_protegroups_dicts"]["protein_summary"]["num_proteins_identified"],
+                              unit=metric_unit_count)
+        quality_metrics.append(qm)
+        
+        # create qualities for run
+        rq = qc.RunQuality(metadata=meta, qualityMetrics=quality_metrics)
+        run_qualities.append(rq)
+        
+        return {
+            "run_qualities": run_qualities,
+            "set_qualities": [],                # not set for now
         }
-        return mzqc_data
     
     def _process_sdrf_file(self):
         """Process SDRF file if present."""
