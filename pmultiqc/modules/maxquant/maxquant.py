@@ -79,7 +79,7 @@ class MaxQuantModule(BasePMultiqcModule):
         run_qualities = []
         quality_metrics = []
         
-        print(f"more DATA INFO: \n\n{self.mq_results['get_parameter_dicts']}")        
+        # print(f"more DATA INFO: \n\n{self.mq_results['get_parameter_dicts']}")        
         # self.mq_results        
         #       'get_parameter_dicts'
         #       'get_protegroups_dicts'
