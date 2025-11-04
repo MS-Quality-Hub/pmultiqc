@@ -67,5 +67,5 @@ class MzQCExporterModule():
             with open(mzqc_filename, "w") as mzqc_file:
                 mzqc_file.write(json.dumps(json.loads(qc.JsonSerialisable.to_json(mzqc)), indent=2))
     
-        self.log.info(f"Done exporting mzQC")
+        self.log.info(f"Done exporting mzQC to {mzqc_filename}")
         return True
