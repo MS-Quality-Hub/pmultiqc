@@ -49,6 +49,13 @@ class PMultiQC(BaseMultiqcModule):
             "mass_error": [],
             "rt_qc": [],
         }
+        
+        # initialize mzQC exporter module
+        mzqc_exporter = None
+        if config.kwargs.get("mzqc_exporter_plugin", False):
+            # initialize the exporter here, then execute it after getting data in parsing modules
+            mzQCExporteModule = get_module("mzqc_exporter", "MzQCExporterModule")
+            mzqc_exporter = mzQCExporteModule()
 
         # Parse ProteoBench results
         if config.kwargs.get("proteobench_plugin", False):
@@ -67,6 +74,9 @@ class PMultiQC(BaseMultiqcModule):
 
             if mq.get_data():
                 mq.draw_plots()
+
+            if mzqc_exporter is not None:
+                mzqc_exporter.export_mzqc(mq.aggregate_mzqc_data())
 
         # Parse mzIdentML results
         elif config.kwargs.get("mzid_plugin", False):

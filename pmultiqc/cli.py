@@ -71,3 +71,6 @@ diann_plugin = click.option(
 quantms_plugin = click.option(
     "--quantms_plugin", "quantms_plugin", is_flag=True, help="Enable quantms plugin"
 )
+mzqc_exporter_plugin = click.option(
+    "--mzqc_exporter_plugin", "mzqc_exporter_plugin", is_flag=True, help="Enable export of mzQC (under development in BioHack2025)"
+)

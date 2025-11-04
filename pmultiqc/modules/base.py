@@ -18,3 +18,6 @@ class BasePMultiqcModule(ABC):
     @abstractmethod
     def draw_plots(self) -> None:
         return None
+    
+    def aggregate_mzqc_data(self) -> None:
+        return None

@@ -48,7 +48,13 @@ class MaxQuantModule(BasePMultiqcModule):
         }
 
         return bool(self.mq_results)
-
+    
+    def aggregate_mzqc_data(self) -> dict:
+        mzqc_data = {
+            "test": "nothing"
+        }
+        return mzqc_data
+    
     def _process_sdrf_file(self):
         """Process SDRF file if present."""
         if "sdrf" not in self.maxquant_paths.keys():
