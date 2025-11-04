@@ -1,5 +1,6 @@
 # Repo specific
 multiqc_data/
+multiqc_report.html
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
