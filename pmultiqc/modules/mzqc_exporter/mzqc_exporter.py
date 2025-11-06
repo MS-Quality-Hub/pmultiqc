@@ -106,7 +106,9 @@ class MzQCExporterModule():
 
         # create qualiy metrics and metadata per sample
         for sample_name, qualitymetrics in self.run_quality_metrics.items():
-            meta = qc.MetaDataParameters(inputFiles=self.run_metadata[sample_name]['input_files'], analysisSoftware=self.run_metadata[sample_name]['analysis_software'])
+            meta = qc.MetaDataParameters(label=sample_name,
+                                         inputFiles=self.run_metadata[sample_name]['input_files'],
+                                         analysisSoftware=self.run_metadata[sample_name]['analysis_software'])
             rq = qc.RunQuality(metadata=meta, qualityMetrics=self.run_quality_metrics[sample_name])
             mzqc_data['run_qualities'].append(rq)
 
