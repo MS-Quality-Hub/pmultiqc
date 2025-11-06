@@ -8,6 +8,8 @@ from multiqc.types import SampleGroup, SampleName
 from pmultiqc.modules.common.plots.general import remove_subtitle
 from pmultiqc.modules.core.section_groups import add_sub_section
 
+from pmultiqc.modules import mzqc_exporter
+from pmultiqc.modules.mzqc_exporter import MzQCExporterModule
 
 def draw_exp_design(sdrf_df, sub_sections):
 
@@ -435,7 +437,7 @@ def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data):
 
 
 # ProteinGroups Count
-def draw_evidence_protein_group_count(sub_section, protein_group_count_data):
+def draw_evidence_protein_group_count(sub_section, protein_group_count_data, mzqc_export: MzQCExporterModule = None):
 
     if protein_group_count_data["title_value"]:
         fig_title = "ProteinGroups Count" + " [" + protein_group_count_data["title_value"] + "]"
@@ -450,10 +452,12 @@ def draw_evidence_protein_group_count(sub_section, protein_group_count_data):
         "ylab": "Count",
     }
 
-    bar_html = bargraph.plot(
+    bar_html = mzqc_exporter.plot_bargraph_and_add_mzqc(
         data=protein_group_count_data["plot_data"],
         cats=protein_group_count_data["cats"],
         pconfig=draw_config,
+        mzqcexporter=mzqc_export,
+        accession="MS:1002404",
     )
 
     bar_html = remove_subtitle(bar_html)

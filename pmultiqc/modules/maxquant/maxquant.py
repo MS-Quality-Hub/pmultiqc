@@ -13,16 +13,21 @@ from pmultiqc.modules.common.plots.general import draw_heatmap
 from pmultiqc.modules.core.section_groups import add_group_modules
 from pmultiqc.modules.base import BasePMultiqcModule
 
+from pmultiqc.modules.mzqc_exporter import MzQCExporterModule
+
 
 class MaxQuantModule(BasePMultiqcModule):
 
-    def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
+    def __init__(self, find_log_files_func, sub_sections, heatmap_colors, mzqc_exporter: MzQCExporterModule=None):
 
         super().__init__(find_log_files_func, sub_sections, heatmap_colors)
         self.section_group_dict = None
 
         self.maxquant_paths = None
         self.mq_results = None
+
+        self.mzqc_exporter = mzqc_exporter
+
 
     def get_data(self) -> bool | None:
         """Process MaxQuant data files and populate results."""
@@ -49,114 +54,33 @@ class MaxQuantModule(BasePMultiqcModule):
             "maxquant_heatmap": maxquant_heatmap,
         }
 
+        self.extract_mzqc_baseinfos()
+
         return bool(self.mq_results)
     
-
-    def aggregate_mzqc_data(self) -> list:
-        # extract some parameters
-        mq_version = "NaN"
-        for _, entry in self.mq_results['get_parameter_dicts']['parameters_tb_dict'].items():
-            if str(entry['parameter']).lower() == "version":
-                mq_version = entry['value']
-
-        # cv entry for maxquant
-        maxquant_mzqc = qc.AnalysisSoftware(accession="MS:1001583", 
-                                        name="MaxQuant",
-                                        description="MaxQuant is a quantitative proteomics software package designed for analyzing large mass spectrometric data sets. It is specifically aimed at high resolution MS data.",
-                                        version=mq_version, 
-                                        uri="https://www.maxquant.org/")
-        
-        # the original filename
-        input_filename = "fake_filename"        # TODO
-        input_file_location = "fake_location"   # TODO
-        input_file_raw = qc.InputFile(name=input_filename, location=input_file_location, 
-                                      fileFormat=qc.CvParameter(accession="MS:1000563", name="Thermo RAW format"),
-                                      fileProperties=[# here we could add more information, if we had them
-                                          ])
-        
-        meta = qc.MetaDataParameters(inputFiles=[input_file_raw], analysisSoftware=[maxquant_mzqc])
-
-        run_qualities = []
-        quality_metrics = []
-        
-        # print(f"more DATA INFO: \n\n{self.mq_results['get_parameter_dicts']}")        
-        # self.mq_results        
-        #       'get_parameter_dicts'
-        #       'get_protegroups_dicts'
-        #           'pg_contaminant'
-        #           'pg_intensity_distri'
-        #           'pg_lfq_intensity_distri'
-        #           'raw_intensity_pca'
-        #           'lfq_intensity_pca'
-        #           'protein_summary',
-        #               'num_proteins_identified'       -> "count of identified proteins"
-        #               'num_proteins_quantified'       ->
-        #           'num_pep_per_protein_dict'
-        #       'ms_ms_identified'
-        #           'QC_20140521_1': {'Identified Rate': 36.08},
-        #           'QC_20140521_2': {'Identified Rate': 35.73},
-        #           'QC_20140522_1': {'Identified Rate': 39.67},
-        #           'QC_20140323_1': {'Identified Rate': 44.34}}
-        #       'get_evidence_dicts'
-        #           'top_contaminants'
-        #           'peptide_intensity'
-        #           'charge_counts'
-        #           'modified_percentage'
-        #           'rt_counts'
-        #           'evidence_df'
-        #           'peak_rt'
-        #           'oversampling'
-        #           'uncalibrated_mass_error'
-        #           'calibrated_mass_error'
-        #           'peptide_id_count'
-        #           'protein_group_count'
-        #           'summary_stat'
-        #               'summary_identified_msms_count' ->
-        #               'summary_identified_peptides'   -> "count of identified peptidoforms"
-        #           'maxquant_delta_mass_da'
-        #           'peptides_quant_table'
-        #           'protein_quant_table'
-        #       'get_msms_dicts'
-        #       'get_msms_scans_dicts'
-        #           'ion_injec_time_rt'
-        #           'top_n'
-        #           'top_over_rt'
-        #           'summary_msms_spectra'          -> "number of MS2 spectra"
-        #       'maxquant_heatmap'
-
-        # create units
-        metric_unit_count = {"unit_accession": "UO:0000189", "unit_name": "count unit"}
-
-        # number of MS2 spectra
-        qm = qc.QualityMetric(accession="MS:4000060",
-                              name="number of MS2 spectra",
-                              value=self.mq_results["get_msms_scans_dicts"]['summary_msms_spectra'],
-                              unit=metric_unit_count)
-        quality_metrics.append(qm)
-
-        # number of Peptides Identified
-        qm = qc.QualityMetric(accession="MS:1003250",
-                              name="The number of peptidoforms that pass the threshold to be considered identified with sufficient confidence.",
-                              value=self.mq_results["get_evidence_dicts"]['summary_stat']['summary_identified_peptides'],
-                              unit=metric_unit_count)
-        quality_metrics.append(qm)
-
-        # number of identified proteins
-        qm = qc.QualityMetric(accession="MS:1002404",
-                              name="count of identified proteins",
-                              value=self.mq_results["get_protegroups_dicts"]["protein_summary"]["num_proteins_identified"],
-                              unit=metric_unit_count)
-        quality_metrics.append(qm)
-        
-        # create qualities for run
-        rq = qc.RunQuality(metadata=meta, qualityMetrics=quality_metrics)
-        run_qualities.append(rq)
-        
-        return {
-            "run_qualities": run_qualities,
-            "set_qualities": [],                # not set for now
-        }
+ 
+    def extract_mzqc_baseinfos(self):
+        """
+        This function extracts some infomration which is not later applied by the plotting, but is useful for the mzQC generation
+        """
+        if self.mzqc_exporter is not None:
+            # extract some parameters
+            mq_version = "NaN"
+            for _, entry in self.mq_results['get_parameter_dicts']['parameters_tb_dict'].items():
+                if str(entry['parameter']).lower() == "version":
+                    mq_version = entry['value']
+            
+            # cv entry for maxquant, including version
+            maxquant_mzqc = qc.AnalysisSoftware(accession="MS:1001583", 
+                                                name="MaxQuant",
+                                                description="MaxQuant is a quantitative proteomics software package designed for analyzing large mass spectrometric data sets. It is specifically aimed at high resolution MS data.",
+                                                version=mq_version, 
+                                                uri="https://www.maxquant.org/")
+            self.mzqc_exporter.add_base_metadata(maxquant_mzqc)
+            
+            # TODO: add FASTA file information
     
+
     def _process_sdrf_file(self):
         """Process SDRF file if present."""
         if "sdrf" not in self.maxquant_paths.keys():
@@ -566,7 +490,8 @@ class MaxQuantModule(BasePMultiqcModule):
             maxquant_plots.draw_evidence_protein_group_count,
             self.sub_sections["identification"],
             self.mq_results["get_evidence_dicts"].get("protein_group_count"),
-            error_name="draw_evidence_protein_group_count"
+            self.mzqc_exporter,
+            error_name="draw_evidence_protein_group_count",
         )
 
         # Oversampling

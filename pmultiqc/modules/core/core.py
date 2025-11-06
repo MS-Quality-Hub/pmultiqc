@@ -70,13 +70,10 @@ class PMultiQC(BaseMultiqcModule):
         elif config.kwargs.get("maxquant_plugin", False):
 
             MaxQuantModule = get_module("maxquant", "MaxQuantModule")
-            mq = MaxQuantModule(self.find_log_files, self.sub_sections, heatmap_color_list)
+            mq = MaxQuantModule(self.find_log_files, self.sub_sections, heatmap_color_list, mzqc_exporter)
 
             if mq.get_data():
                 mq.draw_plots()
-
-            if mzqc_exporter is not None:
-                mzqc_exporter.export_mzqc(mq.aggregate_mzqc_data())
 
         # Parse mzIdentML results
         elif config.kwargs.get("mzid_plugin", False):
@@ -103,6 +100,9 @@ class PMultiQC(BaseMultiqcModule):
                 quantms.draw_plots()
         else:
             raise ValueError("No pmultiqc plugin selected; skipping.")
+        
+        if mzqc_exporter is not None:
+            mzqc_exporter.create_export()
 
 
 def get_module(module_name, class_name):
