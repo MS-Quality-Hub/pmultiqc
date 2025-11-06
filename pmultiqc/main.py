@@ -106,7 +106,7 @@ def pmultiqc_plugin_execution_start():
         config.update_dict(
             config.sp, {"pmultiqc/maxquant_result": {"fn": "*.txt", "num_lines": 0}}
         )
-
+    
     if "pmultiqc/proteobench_result" not in config.sp:
         config.update_dict(
             config.sp,

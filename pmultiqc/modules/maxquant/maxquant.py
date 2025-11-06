@@ -61,7 +61,7 @@ class MaxQuantModule(BasePMultiqcModule):
  
     def extract_mzqc_baseinfos(self):
         """
-        This function extracts some infomration which is not later applied by the plotting, but is useful for the mzQC generation
+        This function extracts some information which is not later applied by the plotting, but is useful for the mzQC generation
         """
         if self.mzqc_exporter is not None:
             # extract some parameters

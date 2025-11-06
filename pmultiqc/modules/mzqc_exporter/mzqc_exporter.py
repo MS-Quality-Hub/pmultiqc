@@ -10,7 +10,8 @@ from multiqc import config
 from multiqc.plots.bargraph import InputDatasetT, CatName, InputCategoriesT, BarPlot, BarPlotConfig
 
 # define common metric units
-metric_unit_count = {"unit_accession": "UO:0000189", "unit_name": "count unit"}
+metric_unit_count = {"unit_accession": "UO:0000189",
+                     "unit_name": "count unit"}
 
 class MzQCExporterModule():
 
@@ -20,12 +21,13 @@ class MzQCExporterModule():
 
         self.base_metadata = []         # metadata, which should be applied to each run
         self.run_quality_metrics = {}   # intermediate store for lists of run_qualities per run
-        self.run_metadata = {}          # intermediate store for metadata per run, each run has a dict with the keys 'input_files' and 'analysis_software', values are lists of these
+        self.run_metadata = {}          # intermediate store for metadata per run, each run has a dict 
+                                        # with the keys 'input_files' and 'analysis_software', values are lists of these
 
 
     def export_mzqc(self, mzqc_data) -> bool | None:
         """
-        Exports MZQC data to a MZQC file format.
+        Exports MZQC data to an MZQC file.
 
         This function takes structured MZQC data and writes it to a file in the
         MZQC (Mass Spectrometry QC) format. The MZQC format is designed to
@@ -33,8 +35,8 @@ class MzQCExporterModule():
         standardized way that can be shared and processed by various tools.
 
         Args:
-            mzqc_data (dict): A dictionary containing the mzQC data structure.
-                              This must include 'run_qualities' and 'set_qualities',
+            mzqc_data (dict): A dictionary containing 
+                             'run_qualities' and 'set_qualities',
                               which are lists of QualityMetric objects
 
         Returns:
