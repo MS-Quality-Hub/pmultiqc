@@ -414,9 +414,11 @@ def draw_quantms_identification(
         "tt_decimals": 0,
         "ylab": "Count",
     }
-    bar_html = bargraph.plot(
-        peptide_count,
+    bar_html = mzqc_exporter.plot_bargraph_and_add_mzqc(
+        data=peptide_count,
         pconfig=draw_config,
+        mzqcexporter=mzqc_export,
+        accession="MS:1003250",
     )
     bar_html = remove_subtitle(bar_html)
 
