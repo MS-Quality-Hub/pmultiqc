@@ -13,6 +13,8 @@ from multiqc import config
 from multiqc.plots import table, bargraph, linegraph
 from pyteomics import mzid, mgf
 
+from mzqc import MZQCFile as qc
+
 from pmultiqc.modules.common.mzidentml_utils import (
     get_mzidentml_mzml_df,
     get_mzidentml_charge,
@@ -159,8 +161,30 @@ class MzIdentMLModule(BasePMultiqcModule):
                 )
 
                 self.mzid_cal_heat_map_score(mzidentml_df)
-
+        
+        self.extract_mzqc_baseinfos()
         return True
+    
+
+    def extract_mzqc_baseinfos(self):
+        """
+        This function extracts some infomration which is not applied by the plotting, but is useful for the mzQC generation
+        """
+        if self.mzqc_exporter is not None:
+            # get input files for the sample names
+            for sample_name in set(self.mzml_ms_df["filename"].unique()):
+                sample_path = None
+
+                for file_path in self.ms_paths:
+                    if os.path.basename(file_path).startswith(sample_name):
+                        sample_path = file_path
+
+                input_file = qc.InputFile(name=sample_name, location=sample_path,
+                                            fileFormat=qc.CvParameter(accession="MS:1000584", name="mzML format"),
+                                            fileProperties=[])
+
+                self.mzqc_exporter.add_metadata_for_run(sample_name, input_file)
+    
     
     def draw_plots(self) -> None:
         self.log.info("Start plotting the MzIdentML results...")
