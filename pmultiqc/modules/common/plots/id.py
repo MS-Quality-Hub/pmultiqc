@@ -9,6 +9,9 @@ from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.common_utils import condition_split
 from pmultiqc.modules.common.plots.general import remove_subtitle
 
+from pmultiqc.modules import mzqc_exporter
+from pmultiqc.modules.mzqc_exporter import MzQCExporterModule
+
 
 def draw_ms_ms_identified(sub_section, msms_identified_percent):
     draw_config = {
@@ -362,7 +365,8 @@ def draw_quantms_identification(
         mzml_table=None,
         quantms_missed_cleavages=None,
         quantms_modified=None,
-        identified_msms_spectra=None
+        identified_msms_spectra=None,
+        mzqc_export: MzQCExporterModule = None
 ):
     draw_config = {
         "id": "protein_group_count",
@@ -383,10 +387,13 @@ def draw_quantms_identification(
         }
     else:
         return
+    
 
-    bar_html = bargraph.plot(
-        protein_count,
+    bar_html = mzqc_exporter.plot_bargraph_and_add_mzqc(
+        data=protein_count,
         pconfig=draw_config,
+        mzqcexporter=mzqc_export,
+        accession="MS:1002404",
     )
     bar_html = remove_subtitle(bar_html)
 

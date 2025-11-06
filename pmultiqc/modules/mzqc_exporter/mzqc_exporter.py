@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Literal, Mapping, NewType, Optional, Sequenc
 from mzqc import MZQCFile as qc
 
 from multiqc import config
-from multiqc.plots.bargraph import InputDatasetT, InputCategoriesT, BarPlot, BarPlotConfig
+from multiqc.plots.bargraph import InputDatasetT, CatName, InputCategoriesT, BarPlot, BarPlotConfig
 
 # define common metric units
 metric_unit_count = {"unit_accession": "UO:0000189", "unit_name": "count unit"}
@@ -188,28 +188,28 @@ class MzQCExporterModule():
                    accession: str = None,
                    ) -> bool | None:
         if accession == "MS:1002404":
-            self.add_metric_count_of_identified_proteins(data)
+            self.add_count_metric_per_sample("MS:1002404", "count of identified proteins", data)
+        elif accession == "MS:1003250":
+            self.add_count_metric_per_sample("MS:1003250", "count of identified peptidoforms", data)
         
         return True
     
 
-    def add_metric_count_of_identified_proteins(self, data: Union[InputDatasetT, Sequence[InputDatasetT]]) -> bool | None:
+    def add_count_metric_per_sample(self, accession: str, name: str, data: Union[InputDatasetT, Sequence[InputDatasetT]]) -> bool | None:
         # data should be a mapping from "file name" to "categories -> values"
         for sample_name, sample_data in data.items():
-            protein_count = None
+            metric_count = None
             if isinstance(sample_data, Mapping):
                 # add up the counts for all categories
-                protein_count = sum(x for x in sample_data.values())
+                metric_count = sum(x for x in sample_data.values())
             else:
                 # try to cast to int
-                protein_count = int(sample_data)
+                metric_count = int(sample_data)
 
             # create a QualityMetric for this sample
-            qm = qc.QualityMetric(accession="MS:1002404",
-                              name="count of identified proteins",
-                              value=protein_count,     
+            qm = qc.QualityMetric(accession=accession,
+                              name=name,
+                              value=metric_count,     
                               unit=metric_unit_count)
             
             self.add_metric_to_run(sample_name=sample_name, qm=qm)
-
-        return True

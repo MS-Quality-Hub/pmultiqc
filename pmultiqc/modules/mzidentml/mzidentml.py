@@ -41,10 +41,12 @@ from pmultiqc.modules.core.section_groups import (
     add_sub_section
 )
 
+from pmultiqc.modules.mzqc_exporter import MzQCExporterModule
+
 
 class MzIdentMLModule(BasePMultiqcModule):
 
-    def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
+    def __init__(self, find_log_files_func, sub_sections, heatmap_colors, mzqc_exporter: MzQCExporterModule=None):
 
         super().__init__(find_log_files_func, sub_sections, heatmap_colors)
 
@@ -96,6 +98,8 @@ class MzIdentMLModule(BasePMultiqcModule):
         self.ms1_bpc: dict = {}
         self.ms1_peaks: dict = {}
         self.ms1_general_stats: dict = {}
+
+        self.mzqc_exporter = mzqc_exporter
 
     def get_data(self) -> bool | None:
         self.log.info("Start parsing the MzIdentML results and spectra files...")
@@ -151,12 +155,13 @@ class MzIdentMLModule(BasePMultiqcModule):
                     quantms_missed_cleavages=self.quantms_missed_cleavages,
                     quantms_modified=self.quantms_modified,
                     identified_msms_spectra=self.identified_msms_spectra,
+                    mzqc_export=self.mzqc_exporter
                 )
 
                 self.mzid_cal_heat_map_score(mzidentml_df)
 
         return True
-
+    
     def draw_plots(self) -> None:
         self.log.info("Start plotting the MzIdentML results...")
 

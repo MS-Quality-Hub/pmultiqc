@@ -389,7 +389,7 @@ def draw_pg_pca(sub_section, pca_data, fig_type):
 
 
 # Peptide ID Count
-def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data):
+def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data, mzqc_export: MzQCExporterModule = None):
 
     if peptide_id_count_data["title_value"]:
         fig_title = "Peptide ID Count" + " [" + peptide_id_count_data["title_value"] + "]"
@@ -404,10 +404,12 @@ def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data):
         "ylab": "Count",
     }
 
-    bar_html = bargraph.plot(
+    bar_html = mzqc_exporter.plot_bargraph_and_add_mzqc(
         data=peptide_id_count_data["plot_data"],
         cats=peptide_id_count_data["cats"],
         pconfig=draw_config,
+        mzqcexporter=mzqc_export,
+        accession="MS:1003250",
     )
 
     bar_html = remove_subtitle(bar_html)

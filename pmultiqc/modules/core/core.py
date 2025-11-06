@@ -59,7 +59,6 @@ class PMultiQC(BaseMultiqcModule):
 
         # Parse ProteoBench results
         if config.kwargs.get("proteobench_plugin", False):
-
             ProteoBenchModule = get_module("proteobench", "ProteoBenchModule")
             pb = ProteoBenchModule(self.find_log_files, None, None)
 
@@ -68,7 +67,6 @@ class PMultiQC(BaseMultiqcModule):
 
         # Parse MaxQuant results
         elif config.kwargs.get("maxquant_plugin", False):
-
             MaxQuantModule = get_module("maxquant", "MaxQuantModule")
             mq = MaxQuantModule(self.find_log_files, self.sub_sections, heatmap_color_list, mzqc_exporter)
 
@@ -77,9 +75,8 @@ class PMultiQC(BaseMultiqcModule):
 
         # Parse mzIdentML results
         elif config.kwargs.get("mzid_plugin", False):
-
             MzIdentMLModule = get_module("mzidentml", "MzIdentMLModule")
-            mzid = MzIdentMLModule(self.find_log_files, self.sub_sections, heatmap_color_list)
+            mzid = MzIdentMLModule(self.find_log_files, self.sub_sections, heatmap_color_list, mzqc_exporter)
             if mzid.get_data():
                 mzid.draw_plots()
 
@@ -91,7 +88,7 @@ class PMultiQC(BaseMultiqcModule):
             if diann.get_data():
                 diann.draw_plots()
 
-        # quantms, DIA-NN results
+        # quantms, LFQ results
         elif config.kwargs.get("quantms_plugin", False):
             QuantMSModule = get_module("quantms", "QuantMSModule")
             quantms = QuantMSModule(self.find_log_files, self.sub_sections, heatmap_color_list)

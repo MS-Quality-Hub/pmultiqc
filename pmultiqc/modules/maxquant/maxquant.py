@@ -483,6 +483,7 @@ class MaxQuantModule(BasePMultiqcModule):
             maxquant_plots.draw_evidence_peptide_id_count,
             self.sub_sections["identification"],
             self.mq_results["get_evidence_dicts"].get("peptide_id_count"),
+            self.mzqc_exporter,
             error_name="draw_evidence_peptide_id_count"
         )
 
