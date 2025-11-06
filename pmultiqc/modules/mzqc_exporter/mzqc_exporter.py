@@ -69,7 +69,7 @@ class MzQCExporterModule():
                            setQualities=mzqc_data["set_qualities"],
                            controlledVocabularies=[cv_ms])
 
-        output_dir = Path(config.output_dir) if config.output_dir is not None else None
+        output_dir = Path(config.output_dir)
         if output_dir is not None:
             # TODO: set the pmultiqc-output by parameters
             mzqc_filename = os.path.join(output_dir, "pmultiqc.mzqc")
