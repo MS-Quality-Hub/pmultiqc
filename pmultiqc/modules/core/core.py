@@ -50,12 +50,9 @@ class PMultiQC(BaseMultiqcModule):
             "rt_qc": [],
         }
         
-        # initialize mzQC exporter module
-        mzqc_exporter = None
-        if config.kwargs.get("mzqc_exporter_plugin", False):
-            # initialize the exporter here, then execute it after getting data in parsing modules
-            mzQCExporteModule = get_module("mzqc_exporter", "MzQCExporterModule")
-            mzqc_exporter = mzQCExporteModule()
+        # initialize mzQC exporter module (always)
+        mzQCExporteModule = get_module("mzqc_exporter", "MzQCExporterModule")
+        mzqc_exporter = mzQCExporteModule()
 
         # Parse ProteoBench results
         if config.kwargs.get("proteobench_plugin", False):

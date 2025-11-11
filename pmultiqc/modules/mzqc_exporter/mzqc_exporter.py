@@ -49,20 +49,20 @@ class MzQCExporterModule():
         
         self.check_for_input_files()
 
-        # create qualiy metrics and metadata per sample
+        # create quality metrics and metadata per sample
         for sample_name, qualitymetrics in self.run_quality_metrics.items():
-            meta = qc.MetaDataParameters(label=sample_name,
-                                         inputFiles=self.run_metadata[sample_name]['input_files'],
-                                         analysisSoftware=self.run_metadata[sample_name]['analysis_software'])
-            rq = qc.RunQuality(metadata=meta, qualityMetrics=self.run_quality_metrics[sample_name])
+            meta = qc.MetaDataParameters(label = sample_name,
+                                         inputFiles = self.run_metadata[sample_name]['input_files'],
+                                         analysisSoftware = self.run_metadata[sample_name]['analysis_software'])
+            rq = qc.RunQuality(metadata = meta, qualityMetrics = self.run_quality_metrics[sample_name])
             mzqc_data['run_qualities'].append(rq)
 
         # create the mzQC object storing all the data
-        mzqc = qc.MzQcFile(version="1.0.0",
-                           creationDate=datetime.now().isoformat(),
-                           runQualities=mzqc_data["run_qualities"],
-                           setQualities=mzqc_data["set_qualities"],
-                           controlledVocabularies=[cv_ms])
+        mzqc = qc.MzQcFile(version = "1.0.0",
+                           creationDate = datetime.now().isoformat(),
+                           runQualities = mzqc_data["run_qualities"],
+                           setQualities = mzqc_data["set_qualities"],
+                           controlledVocabularies = [cv_ms])
         
         # write out the mzQC file
         output_dir = Path(config.output_dir) if config.output_dir is not None else None
@@ -71,7 +71,7 @@ class MzQCExporterModule():
             # TODO: set the pmultiqc-output by parameters
             mzqc_filename = os.path.join(output_dir, "pmultiqc.mzqc")
             with open(mzqc_filename, "w") as mzqc_file:
-                mzqc_file.write(json.dumps(json.loads(qc.JsonSerialisable.to_json(mzqc)), indent=2))
+                mzqc_file.write(json.dumps(json.loads(qc.JsonSerialisable.to_json(mzqc)), indent = 2))
         
         self.log.info(f"Done exporting mzQC to {mzqc_filename}")
 
@@ -86,7 +86,8 @@ class MzQCExporterModule():
             if len(self.run_metadata[sample_name]['input_files']) < 1:
                 self.log.warning(f"No input file given for {sample_name}, creating stub")
                 
-                input_file_stub = qc.InputFile(name=sample_name,location="UNKNOWN", 
+                input_file_stub = qc.InputFile(name=sample_name,
+                                               location="UNKNOWN", 
                                                fileFormat=None, 
                                                fileProperties=[])
                 
@@ -121,6 +122,11 @@ class MzQCExporterModule():
     
 
     def add_metadata_for_run(self, sample_name: str, metadata: qc.InputFile | qc.AnalysisSoftware):
+        """ 
+        Insert
+         - InputFile into input_files and
+         - AnalysisSoftware into analysis_software
+        """
         if sample_name not in self.run_quality_metrics.keys():
             self.create_run(sample_name)
         
