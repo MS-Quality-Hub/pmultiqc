@@ -3,8 +3,6 @@ from datetime import datetime
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from mzqc import MZQCFile as qc
-
 from pmultiqc.modules.maxquant import (
     maxquant_utils,
     maxquant_io,
@@ -28,7 +26,7 @@ class MaxQuantModule(BasePMultiqcModule):
         self.mq_results = None
 
         self.mzqc_exporter = mzqc_exporter
-
+        
 
     def get_data(self) -> bool | None:
         """Process MaxQuant data files and populate results."""
@@ -71,24 +69,13 @@ class MaxQuantModule(BasePMultiqcModule):
             
             combined_data = mqpar_data.combine(parameter_data, self.log) ## useful in case one of the files is missing;
             
-            # CV entry for maxquant, including version
-            maxquant_mzqc = qc.AnalysisSoftware(accession = "MS:1001583", 
-                                                name = "MaxQuant",
-                                                description = "MaxQuant is a quantitative proteomics software package designed for analyzing large mass spectrometric data sets. It is specifically aimed at high resolution MS data.",
-                                                version = combined_data.version, 
-                                                uri = "https://www.maxquant.org/")
-            self.mzqc_exporter.add_base_metadata(maxquant_mzqc)
-            
-            # add FASTA files
-            from pathlib import Path
-            for fastafile in combined_data.fastafile_paths:
-                maxquant_mzqc = qc.InputFile(name = Path(fastafile).name,
-                                             location = fastafile,
-                                             fileFormat = qc.CvParameter(accession = "MS:1001348", name = "FASTA format"))
-                self.mzqc_exporter.add_base_metadata(maxquant_mzqc)
+            # Use MaxQuantAdapter to handle mzQC CV entry creation
+            from pmultiqc.modules.mzqc_exporter.maxquant_adapter import MaxQuantAdapter
+            adapter = MaxQuantAdapter(self.mzqc_exporter)
+            adapter.process_metadata(combined_data)
 
-            ## todo: create InputFiles from combined_data.rawfile_paths
-
+            # for the report itself:
+            #self.software_version = combined_data.version
 
     @dataclass
     class MQMetaData:

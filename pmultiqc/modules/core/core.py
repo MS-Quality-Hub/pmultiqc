@@ -66,9 +66,12 @@ class PMultiQC(BaseMultiqcModule):
         elif config.kwargs.get("maxquant_plugin", False):
             MaxQuantModule = get_module("maxquant", "MaxQuantModule")
             mq = MaxQuantModule(self.find_log_files, self.sub_sections, heatmap_color_list, mzqc_exporter)
-
+            
             if mq.get_data():
                 mq.draw_plots()
+
+            if mq.software_version is not None:
+                self.add_software_version("MaxQuant " + mq.software_version) 
 
         # Parse mzIdentML results
         elif config.kwargs.get("mzid_plugin", False):
