@@ -18,6 +18,7 @@ pmultiqc is a MultiQC plugin for comprehensive quality control reporting of prot
 - Provides comprehensive QC metrics for MS data
 - Supports different quantification methods (LFQ, TMT, DIA)
 - Integrates with the MultiQC framework
+- exports mzQC quality control information
 
 ## Supported Data Sources
 
@@ -129,6 +130,17 @@ multiqc --mzid_plugin /path/to/mzid/files -o ./report
 ```
 
 
+#### For mzQC output
+
+To create a pmultiqc.mzQC file in the output directory, just activate the mzqc_exporter module by adding `--mzqc_exporter_plugin` to your commandline call.
+The number of exported metrics is work-in-progress. Currently only MaxQuant and mzIdentML plugins generate mzQC output.
+```bash
+multiqc ...  --mzqc_exporter_plugin
+```
+
+
+
+
 ### Command-line Options
 
 | Option | Description | Default |
@@ -148,6 +160,7 @@ multiqc --mzid_plugin /path/to/mzid/files -o ./report
 | `--maxquant_plugin` | Generate reports based on MaxQuant results | `False` |
 | `--proteobench_plugin` | Generate reports based on ProteoBench result | `False` |
 | `--mzid_plugin` | Generate reports based on mzIdentML files | `False` |
+| `--mzqc_exporter_plugin` | Create pmultiqc.mzQC output file | `False` |
 
 ## QC Metrics and Visualizations
 

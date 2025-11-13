@@ -8,6 +8,8 @@ from multiqc.types import SampleGroup, SampleName
 from pmultiqc.modules.common.plots.general import remove_subtitle
 from pmultiqc.modules.core.section_groups import add_sub_section
 
+from pmultiqc.modules import mzqc_exporter
+from pmultiqc.modules.mzqc_exporter import MzQCExporterModule
 
 def draw_exp_design(sdrf_df, sub_sections):
 
@@ -387,7 +389,7 @@ def draw_pg_pca(sub_section, pca_data, fig_type):
 
 
 # Peptide ID Count
-def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data):
+def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data, mzqc_export: MzQCExporterModule = None):
 
     if peptide_id_count_data["title_value"]:
         fig_title = "Peptide ID Count" + " [" + peptide_id_count_data["title_value"] + "]"
@@ -407,8 +409,12 @@ def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data):
         cats=peptide_id_count_data["cats"],
         pconfig=draw_config,
     )
-
     bar_html = remove_subtitle(bar_html)
+    
+    # Add peptide ID count metrics to mzQC export
+    if mzqc_export is not None:
+        mzqc_export.metrics.add_peptide_id_count(peptide_id_count_data["plot_data"])
+
 
     add_sub_section(
         sub_section=sub_section,
@@ -435,7 +441,7 @@ def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data):
 
 
 # ProteinGroups Count
-def draw_evidence_protein_group_count(sub_section, protein_group_count_data):
+def draw_evidence_protein_group_count(sub_section, protein_group_count_data, mzqc_export: MzQCExporterModule = None):
 
     if protein_group_count_data["title_value"]:
         fig_title = "ProteinGroups Count" + " [" + protein_group_count_data["title_value"] + "]"
@@ -455,8 +461,12 @@ def draw_evidence_protein_group_count(sub_section, protein_group_count_data):
         cats=protein_group_count_data["cats"],
         pconfig=draw_config,
     )
-
     bar_html = remove_subtitle(bar_html)
+    
+    
+    # Add protein ID count metrics to mzQC export
+    if mzqc_export is not None:
+        mzqc_export.metrics.add_protein_id_count(protein_group_count_data["plot_data"])
 
     add_sub_section(
         sub_section=sub_section,

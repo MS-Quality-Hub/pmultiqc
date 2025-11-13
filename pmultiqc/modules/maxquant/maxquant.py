@@ -1,5 +1,7 @@
 import os
 from datetime import datetime
+from dataclasses import dataclass, field
+from typing import Any, List, Optional
 
 from pmultiqc.modules.maxquant import (
     maxquant_utils,
@@ -10,17 +12,65 @@ from pmultiqc.modules.common.plots import id as id_plots
 from pmultiqc.modules.common.plots.general import draw_heatmap
 from pmultiqc.modules.core.section_groups import add_group_modules
 from pmultiqc.modules.base import BasePMultiqcModule
+from pmultiqc.modules.mzqc_exporter import MzQCExporterModule
+    
+    
+@dataclass
+class MQMetaData:
+    """
+        Collection of MQ metadata, obtained from parameter.txt or mqpar.xml
+    """
+    source: str = ""
+    rawfile_paths: list[str] = field(default_factory=list)
+    fastafile_paths: list[str] = field(default_factory=list)
+    version: str = ""
+    
+    def combine(self, rhs, log):
+        """
+        Combine metadata from two MQMetaData objects:
+        - Use non-empty fields from either side
+        - Log inconsistencies if both sides have data but differ (preferring values of lhs in the return value)
+        """
+        from copy import copy
+        tmp = copy(self)  # shallow copy
+
+        # Helper to pick non-empty values
+        def pick(lhs, rhs):
+            return rhs if lhs in ([], "") else lhs
+
+        tmp.rawfile_paths = pick(tmp.rawfile_paths, rhs.rawfile_paths)
+        tmp.fastafile_paths = pick(tmp.fastafile_paths, rhs.fastafile_paths)
+        tmp.version = pick(tmp.version, rhs.version)
+
+        # Consistency check and logging
+        for field, label in [
+            ("rawfile_paths", "Raw file paths"),
+            ("fastafile_paths", "FASTA file paths"),
+            ("version", "Version"),
+        ]:
+            lhs_val, rhs_val = getattr(tmp, field), getattr(rhs, field)
+            if lhs_val and rhs_val and lhs_val != rhs_val:
+                log.info(
+                    f"{datetime.now():%H:%M:%S}: Comparing MQ meta data ({tmp.source}<>{rhs.source}): "
+                    f"inconsistent values for {label}: {lhs_val} <> {rhs_val}"
+                )
+
+        return tmp
+
 
 
 class MaxQuantModule(BasePMultiqcModule):
 
-    def __init__(self, find_log_files_func, sub_sections, heatmap_colors):
+    def __init__(self, find_log_files_func, sub_sections, heatmap_colors, mzqc_exporter: Optional[MzQCExporterModule]):
 
         super().__init__(find_log_files_func, sub_sections, heatmap_colors)
         self.section_group_dict = None
 
-        self.maxquant_paths = None
-        self.mq_results = None
+        self.maxquant_paths : dict[str, Any] = {}
+        self.mq_results : dict[str, Any] = {}
+
+        self.mzqc_exporter = mzqc_exporter
+        
 
     def get_data(self) -> bool | None:
         """Process MaxQuant data files and populate results."""
@@ -47,7 +97,64 @@ class MaxQuantModule(BasePMultiqcModule):
             "maxquant_heatmap": maxquant_heatmap,
         }
 
+        self._extract_metadata()
+
         return bool(self.mq_results)
+    
+ 
+    def _extract_metadata(self):
+        """
+        Extract some useful information, used in various places
+        """
+        if self.mzqc_exporter is not None:
+            # extract some parameters
+            parameter_data = self._extractFromParameter()
+            mqpar_data = self._parseMQParFile()  # contains full path to FASTA files (unlike Parameters.txt)
+            
+            combined_data = mqpar_data.combine(parameter_data, self.log) ## useful in case one of the files is missing;
+            
+            # Use MaxQuantAdapter to handle mzQC CV entry creation
+            if self.mzqc_exporter is not None:
+                from pmultiqc.modules.mzqc_exporter.maxquant_adapter import MaxQuantAdapter
+                adapter = MaxQuantAdapter(self.mzqc_exporter)
+                adapter.process_metadata(combined_data)
+
+            # for the report itself:
+            self.software_version = combined_data.version
+
+    def _extractFromParameter(self) -> Optional[MQMetaData]:
+        
+        meta_data = MQMetaData()
+        meta_data.source = "Parameters.txt"
+        for _, entry in self.mq_results['get_parameter_dicts']['parameters_tb_dict'].items():
+            if str(entry['parameter']).lower() == "version":
+                meta_data.version = entry['value']
+            if str(entry['parameter']).lower() == "fasta file":  # e.g.  33	Fasta file	a.fasta;b.fasta
+                meta_data.fastafile_paths = entry['value'].split(';')
+   
+        return meta_data
+    
+    def _parseMQParFile(self) -> Optional[MQMetaData]:
+        """
+            Process mqpar.xml (if present)
+            and rerturn a dictionary with 
+              - rawfile names
+              - fasta filenames
+              - MaxQuant version
+        """
+        if "mqpar" not in self.maxquant_paths.keys():
+            return None
+        
+        import xml.etree.ElementTree as ET
+        mqpar_file = self.maxquant_paths["mqpar"];
+        root = ET.parse(mqpar_file).getroot()
+
+        # {*} to capture namespace in <MaxQuantParams ...>
+        rawfile_paths = [e.text for e in root.findall(".//{*}filePaths/{*}string")]
+        fastafile_paths = [e.text for e in root.findall(".//{*}fastaFiles/{*}FastaFileInfo/{*}fastaFilePath")]
+        version = ([e.text for e in root.findall(".//{*}maxQuantVersion")] or [None])[0]
+        
+        return MQMetaData(source = mqpar_file, rawfile_paths = rawfile_paths, fastafile_paths = fastafile_paths, version = version)
 
     def _process_sdrf_file(self):
         """Process SDRF file if present."""
@@ -451,6 +558,7 @@ class MaxQuantModule(BasePMultiqcModule):
             maxquant_plots.draw_evidence_peptide_id_count,
             self.sub_sections["identification"],
             self.mq_results["get_evidence_dicts"].get("peptide_id_count"),
+            self.mzqc_exporter,
             error_name="draw_evidence_peptide_id_count"
         )
 
@@ -458,6 +566,7 @@ class MaxQuantModule(BasePMultiqcModule):
             maxquant_plots.draw_evidence_protein_group_count,
             self.sub_sections["identification"],
             self.mq_results["get_evidence_dicts"].get("protein_group_count"),
+            self.mzqc_exporter,
             error_name="draw_evidence_protein_group_count"
         )
 

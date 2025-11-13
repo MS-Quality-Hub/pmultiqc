@@ -17,11 +17,21 @@ def maxquant_file_path(find_log_files):
     ]
 
     maxquant_paths = {}
+
+    txt_root = None
+
     # MaxQuant Data
     for maxquant_file in find_log_files("pmultiqc/maxquant_result", filecontents=False):
         if maxquant_file["fn"] in required_files:
             f_path = os.path.join(maxquant_file["root"], maxquant_file["fn"])
             maxquant_paths[file_prefix(f_path)] = f_path
+            ## grab the path to the txt's, so we can search for the mqpar.xml two folders up
+            if txt_root is None:
+                txt_root = maxquant_file["root"]
+
+    ## find ../../mqpar.xml (using manual glob, since multiqc will not look outside the search path)
+    import glob
+    maxquant_paths["mqpar"] = (glob.glob(os.path.join(txt_root, "../../mqpar.xml")) or [None])[0]
 
     # SDRF
     # "*sdrf.tsv"

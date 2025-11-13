@@ -9,6 +9,9 @@ from pmultiqc.modules.core.section_groups import add_sub_section
 from pmultiqc.modules.common.common_utils import condition_split
 from pmultiqc.modules.common.plots.general import remove_subtitle
 
+from pmultiqc.modules import mzqc_exporter
+from pmultiqc.modules.mzqc_exporter import MzQCExporterModule
+
 
 def draw_ms_ms_identified(sub_section, msms_identified_percent):
     draw_config = {
@@ -362,7 +365,8 @@ def draw_quantms_identification(
         mzml_table=None,
         quantms_missed_cleavages=None,
         quantms_modified=None,
-        identified_msms_spectra=None
+        identified_msms_spectra=None,
+        mzqc_export: MzQCExporterModule|None = None
 ):
     draw_config = {
         "id": "protein_group_count",
@@ -383,12 +387,17 @@ def draw_quantms_identification(
         }
     else:
         return
+    
 
     bar_html = bargraph.plot(
-        protein_count,
+        data=protein_count,
         pconfig=draw_config,
     )
     bar_html = remove_subtitle(bar_html)
+    
+    # Add protein ID count metrics to mzQC export
+    if mzqc_export is not None:
+        mzqc_export.metrics.add_protein_id_count(protein_count)
 
     add_sub_section(
         sub_section=sub_sections,
@@ -408,10 +417,14 @@ def draw_quantms_identification(
         "ylab": "Count",
     }
     bar_html = bargraph.plot(
-        peptide_count,
+        data=peptide_count,
         pconfig=draw_config,
     )
     bar_html = remove_subtitle(bar_html)
+    
+    # Add peptide ID count metrics to mzQC export
+    if mzqc_export is not None:
+        mzqc_export.metrics.add_peptide_id_count(peptide_count)
 
     add_sub_section(
         sub_section=sub_sections,

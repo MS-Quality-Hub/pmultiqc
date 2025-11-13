@@ -6,6 +6,8 @@ class BasePMultiqcModule(ABC):
         self.find_log_files = find_log_files_func
         self.sub_sections = sub_sections
         self.heatmap_color_list = heatmap_colors
+        
+        self.software_version = None  ## later used in BaseMultiqcModule.add_software_version()
 
         # Initialize logging for this module via centralized logger
         from pmultiqc.modules.common.logging import get_logger

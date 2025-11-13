@@ -49,10 +49,15 @@ class PMultiQC(BaseMultiqcModule):
             "mass_error": [],
             "rt_qc": [],
         }
+        
+        # initialize mzQC exporter module
+        mzqc_exporter = None
+        if config.kwargs.get("mzqc_exporter_plugin", False):
+            mzQCExporteModule = get_module("mzqc_exporter", "MzQCExporterModule")
+            mzqc_exporter = mzQCExporteModule()
 
         # Parse ProteoBench results
         if config.kwargs.get("proteobench_plugin", False):
-
             ProteoBenchModule = get_module("proteobench", "ProteoBenchModule")
             pb = ProteoBenchModule(self.find_log_files, None, None)
 
@@ -61,18 +66,19 @@ class PMultiQC(BaseMultiqcModule):
 
         # Parse MaxQuant results
         elif config.kwargs.get("maxquant_plugin", False):
-
             MaxQuantModule = get_module("maxquant", "MaxQuantModule")
-            mq = MaxQuantModule(self.find_log_files, self.sub_sections, heatmap_color_list)
-
+            mq = MaxQuantModule(self.find_log_files, self.sub_sections, heatmap_color_list, mzqc_exporter)
+            
             if mq.get_data():
                 mq.draw_plots()
 
+            if mq.software_version is not None:
+                self.add_software_version("MaxQuant " + mq.software_version) 
+
         # Parse mzIdentML results
         elif config.kwargs.get("mzid_plugin", False):
-
             MzIdentMLModule = get_module("mzidentml", "MzIdentMLModule")
-            mzid = MzIdentMLModule(self.find_log_files, self.sub_sections, heatmap_color_list)
+            mzid = MzIdentMLModule(self.find_log_files, self.sub_sections, heatmap_color_list, mzqc_exporter)
             if mzid.get_data():
                 mzid.draw_plots()
 
@@ -84,7 +90,7 @@ class PMultiQC(BaseMultiqcModule):
             if diann.get_data():
                 diann.draw_plots()
 
-        # quantms, DIA-NN results
+        # quantms, LFQ results
         elif config.kwargs.get("quantms_plugin", False):
             QuantMSModule = get_module("quantms", "QuantMSModule")
             quantms = QuantMSModule(self.find_log_files, self.sub_sections, heatmap_color_list)
@@ -93,6 +99,9 @@ class PMultiQC(BaseMultiqcModule):
                 quantms.draw_plots()
         else:
             raise ValueError("No pmultiqc plugin selected; skipping.")
+        
+        if mzqc_exporter is not None:
+            mzqc_exporter.create_export()
 
 
 def get_module(module_name, class_name):
