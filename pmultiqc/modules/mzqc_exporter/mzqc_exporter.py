@@ -19,15 +19,15 @@ class MzQCExporterModule():
         from pmultiqc.modules.common.logging import get_logger
         self.log = get_logger(self.__class__.__module__)
 
-        self.base_metadata = []         # metadata, which should be applied to each run
-        self.run_quality_metrics = {}   # intermediate store for lists of run_qualities per run
-        self.run_metadata = {}          # intermediate store for metadata per run, each run has a dict 
+        self.run_quality_base_metadata = []   # metadata, which should be applied to each runquality (e.g. inputfile from FASTA filenames)
+        self.run_quality_metrics = {}   # intermediate store for lists of run_qualities per sample
+        self.run_quality_metadata = {}  # intermediate store for metadata per sample: each has a dict 
                                         # with the keys 'input_files' and 'analysis_software', values are lists of these
 
  
     def create_export(self):
         """
-        Finally, create the mzQC object(s) and write the file
+        Create the mzQC object(s) and write the mzQC file
         """
 
         self.log.info("Starting mzQC export ...")
@@ -42,19 +42,17 @@ class MzQCExporterModule():
             "set_qualities": [],
         }
 
-        # add all base metadata to each sample's metadata
-        for sample_name in self.run_quality_metrics.keys():
-            for metadata in self.base_metadata:
-                self.add_metadata_for_run(sample_name, metadata)
-        
-        self.check_for_input_files()
+        # add all base metadata to each RunQualities' metadata
+        for label in self.run_quality_metrics.keys():
+            for metadata in self.run_quality_base_metadata:
+                self.add_metadata_for_run_quality(label, metadata)
 
-        # create quality metrics and metadata per sample
-        for sample_name, qualitymetrics in self.run_quality_metrics.items():
-            meta = qc.MetaDataParameters(label = sample_name,
-                                         inputFiles = self.run_metadata[sample_name]['input_files'],
-                                         analysisSoftware = self.run_metadata[sample_name]['analysis_software'])
-            rq = qc.RunQuality(metadata = meta, qualityMetrics = self.run_quality_metrics[sample_name])
+        # create quality metrics and metadata per RunQuality
+        for label, qualitymetrics in self.run_quality_metrics.items():
+            meta = qc.MetaDataParameters(label = label,
+                                         inputFiles = self.run_quality_metadata[label]['input_files'],
+                                         analysisSoftware = self.run_quality_metadata[label]['analysis_software'])
+            rq = qc.RunQuality(metadata = meta, qualityMetrics = self.run_quality_metrics[label])
             mzqc_data['run_qualities'].append(rq)
 
         # create the mzQC object storing all the data
@@ -64,81 +62,58 @@ class MzQCExporterModule():
                            setQualities = mzqc_data["set_qualities"],
                            controlledVocabularies = [cv_ms])
         
-        # write out the mzQC file
-        output_dir = Path(config.output_dir) if config.output_dir is not None else None
-        mzqc_filename = None
-        if output_dir is not None:
-            # TODO: set the pmultiqc-output by parameters
-            mzqc_filename = os.path.join(output_dir, "pmultiqc.mzqc")
-            with open(mzqc_filename, "w") as mzqc_file:
-                mzqc_file.write(json.dumps(json.loads(qc.JsonSerialisable.to_json(mzqc)), indent = 2))
-        
+        # write the mzQC file
+        output_dir = Path(config.output_dir) if config.output_dir is not None else Path("./")  ## use current dir
+        mzqc_filename = os.path.join(output_dir, "pmultiqc.mzqc")
+        with open(mzqc_filename, "w") as mzqc_file:
+            mzqc_file.write(json.dumps(json.loads(qc.JsonSerialisable.to_json(mzqc)), indent = 2))
         self.log.info(f"Done exporting mzQC to {mzqc_filename}")
 
 
-    def check_for_input_files(self):
-        """
-        Checks whether there are input files annotated for the sample_names.
-        If not, create stubs which need to be fixed later
-        """
+    def _create_empty_run(self, label: str):
+        # initialize metadata for RunQuality
+        self.run_quality_metrics[label] = []
 
-        for sample_name in self.run_metadata.keys():
-            if len(self.run_metadata[sample_name]['input_files']) < 1:
-                self.log.warning(f"No input file given for {sample_name}, creating stub")
-                
-                input_file_stub = qc.InputFile(name=sample_name,
-                                               location="UNKNOWN", 
-                                               fileFormat=None, 
-                                               fileProperties=[])
-                
-                self.run_metadata[sample_name]['input_files'].append(input_file_stub)
-
-
-
-    def create_run(self, run_id: str):
-        # initialize metadata for run
-        self.run_quality_metrics[run_id] = []
-
-        # initialize metadata store for run
-        self.run_metadata[run_id] = {
+        # initialize metadata store for RunQuality
+        self.run_quality_metadata[label] = {
             'input_files': [],
             'analysis_software': [],
         }
     
     
-    def add_metric_to_run(self, sample_name: str, qm: qc.QualityMetric):
-        if sample_name not in self.run_quality_metrics.keys():
-            self.create_run(sample_name)
-        self.run_quality_metrics[sample_name].append(qm)
+    def add_metric_to_run_quality(self, label: str, qm: qc.QualityMetric):
+        if label not in self.run_quality_metrics.keys():
+            self._create_empty_run(label)
+        self.run_quality_metrics[label].append(qm)
 
 
-    def add_base_metadata(self, metadata: qc.InputFile | qc.AnalysisSoftware):
+    def add_base_metadata_to_run_quality(self, metadata: qc.InputFile | qc.AnalysisSoftware):
         """
         This function adds information which should be used for all runs in the mzQC export, like
         the used AnalysisSoftware (if equal), same FASTAs etc.
         """
         # the infromation is only collected at this step, and added later during creation of the mzQC object
-        self.base_metadata.append(metadata)
+        self.run_quality_base_metadata.append(metadata)
     
 
-    def add_metadata_for_run(self, sample_name: str, metadata: qc.InputFile | qc.AnalysisSoftware):
+    def add_metadata_for_run_quality(self, label: str, metadata: qc.InputFile | qc.AnalysisSoftware):
         """ 
-        Insert
+        Insert into the runquality with key 'label':
          - InputFile into input_files and
          - AnalysisSoftware into analysis_software
         """
-        if sample_name not in self.run_quality_metrics.keys():
-            self.create_run(sample_name)
+        if label not in self.run_quality_metrics.keys():
+            self._create_empty_run(label)
         
         if isinstance(metadata, qc.InputFile):
-            self.run_metadata[sample_name]['input_files'].append(metadata)
+            self.run_quality_metadata[label]['input_files'].append(metadata)
         elif isinstance(metadata, qc.AnalysisSoftware):
-            self.run_metadata[sample_name]['analysis_software'].append(metadata)
+            self.run_quality_metadata[label]['analysis_software'].append(metadata)
     
 
     def add_metric(self,
                    data: Union[InputDatasetT, Sequence[InputDatasetT]],
-                   accession: str = None,
+                   accession: str = "",
                    ) -> bool | None:
         if accession == "MS:1002404":
             self.add_count_metric_per_sample("MS:1002404", "count of identified proteins", data)
@@ -148,9 +123,9 @@ class MzQCExporterModule():
         return True
     
 
-    def add_count_metric_per_sample(self, accession: str, name: str, data: Union[InputDatasetT, Sequence[InputDatasetT]]) -> bool | None:
+    def add_count_metric_per_sample(self, accession: str, name: str, data: Union[InputDatasetT, Sequence[InputDatasetT]]):
         # data should be a mapping from "file name" to "categories -> values"
-        for sample_name, sample_data in data.items():
+        for label, sample_data in data.items():
             metric_count = None
             if isinstance(sample_data, Mapping):
                 # add up the counts for all categories
@@ -165,4 +140,4 @@ class MzQCExporterModule():
                               value=metric_count,     
                               unit=metric_unit_count)
             
-            self.add_metric_to_run(sample_name=sample_name, qm=qm)
+            self.add_metric_to_run_quality(label=label, qm=qm)

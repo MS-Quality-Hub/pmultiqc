@@ -1,8 +1,11 @@
 from pathlib import Path
-from typing import Optional
+from typing import List
 
 from mzqc import MZQCFile as qc
 
+from pmultiqc.modules.mzqc_exporter import MzQCExporterModule
+
+from pmultiqc.modules.maxquant.maxquant import MQMetaData
 
 class MaxQuantAdapter:
     """
@@ -10,7 +13,7 @@ class MaxQuantAdapter:
     Separates mzQC logic from the main MaxQuant module.
     """
     
-    def __init__(self, mzqc_exporter):
+    def __init__(self, mzqc_exporter : MzQCExporterModule):
         """
         Initialize the adapter with an mzQC exporter instance.
         
@@ -19,18 +22,18 @@ class MaxQuantAdapter:
         """
         self.mzqc_exporter = mzqc_exporter
     
-    def process_metadata(self, combined_data):
+    def process_metadata(self, combined_data : MQMetaData):
         """
         Process MaxQuant metadata and create appropriate mzQC CV entries.
         
         Args:
             combined_data: MQMetaData object containing version, FASTA paths, raw file paths
         """
-        self._create_analysis_software_entry(combined_data)
-        self._create_fasta_file_entries(combined_data)
-        self._create_raw_file_entries(combined_data)
+        self._create_analysis_software_entry(combined_data.version)
+        self._create_fasta_file_entries(combined_data.fastafile_paths)
+        self._create_raw_file_entries(combined_data.rawfile_paths)
     
-    def _create_analysis_software_entry(self, combined_data):
+    def _create_analysis_software_entry(self, version : str):
         """
         Create AnalysisSoftware CV entry for MaxQuant.
         
@@ -41,34 +44,34 @@ class MaxQuantAdapter:
             accession="MS:1001583", 
             name="MaxQuant",
             description="MaxQuant is a quantitative proteomics software package designed for analyzing large mass spectrometric data sets. It is specifically aimed at high resolution MS data.",
-            version=combined_data.version, 
+            version=version, 
             uri="https://www.maxquant.org/"
         )
-        self.mzqc_exporter.add_base_metadata(maxquant_mzqc)
+        self.mzqc_exporter.add_base_metadata_to_run_quality(maxquant_mzqc)
     
-    def _create_fasta_file_entries(self, combined_data):
+    def _create_fasta_file_entries(self, fastafile_paths : List[str]):
         """
         Create InputFile CV entries for FASTA files.
         
         Args:
-            combined_data: MQMetaData object containing FASTA file paths
+            combined_data: list of FASTA file paths
         """
-        for fastafile in combined_data.fastafile_paths:
+        for fastafile in fastafile_paths:
             fasta_input_file = qc.InputFile(
                 name = Path(fastafile).name,
                 location = fastafile,
                 fileFormat = qc.CvParameter(accession="MS:1001348", name="FASTA format")
             )
-            self.mzqc_exporter.add_base_metadata(fasta_input_file)
+            self.mzqc_exporter.add_base_metadata_to_run_quality(fasta_input_file)
     
-    def _create_raw_file_entries(self, combined_data):
+    def _create_raw_file_entries(self, rawfile_paths : List[str]):
         """
-        Create InputFile CV entries for raw files.
+        Create InputFile CV entries for raw files, using the filename prefix (=stem) as label.
         
         Args:
-            combined_data: MQMetaData object containing raw file paths
+            rawfile_paths: list of raw file paths
         """
-        for rawfile in combined_data.rawfile_paths:
+        for rawfile in rawfile_paths:
             # Get the appropriate CV term and name for the file format
             cv_accession, cv_name = self._filename_to_cv(rawfile)
             
@@ -78,7 +81,7 @@ class MaxQuantAdapter:
                 location=rawfile,
                 fileFormat=qc.CvParameter(accession=cv_accession, name=cv_name)
             )
-            self.mzqc_exporter.add_base_metadata(raw_input_file)
+            self.mzqc_exporter.add_metadata_for_run_quality(Path(rawfile).stem, raw_input_file)
     
     def _filename_to_cv(self, filepath):
         """
