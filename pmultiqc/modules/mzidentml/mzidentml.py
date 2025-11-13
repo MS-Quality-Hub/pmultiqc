@@ -44,6 +44,7 @@ from pmultiqc.modules.core.section_groups import (
 )
 
 from pmultiqc.modules.mzqc_exporter import MzQCExporterModule
+from pmultiqc.modules.mzqc_exporter.mzidentml_adapter import MzIdentMLAdapter
 
 
 class MzIdentMLModule(BasePMultiqcModule):
@@ -168,22 +169,12 @@ class MzIdentMLModule(BasePMultiqcModule):
 
     def _extract_metadata(self):
         """
-        This function extracts some infomration which is not applied by the plotting, but is useful for the mzQC generation
+        This function extracts some information which is not applied by the plotting, but is useful for the mzQC generation
         """
         if self.mzqc_exporter is not None:
-            # get input files for the sample names
-            for sample_name in set(self.mzml_ms_df["filename"].unique()):
-                sample_path = None
-
-                for file_path in self.ms_paths:
-                    if os.path.basename(file_path).startswith(sample_name):
-                        sample_path = file_path
-
-                input_file = qc.InputFile(name=sample_name, location=sample_path,
-                                            fileFormat=qc.CvParameter(accession="MS:1000584", name="mzML format"),
-                                            fileProperties=[])
-
-                self.mzqc_exporter.add_metadata_for_run(sample_name, input_file)
+            # Use the adapter to process metadata
+            adapter = MzIdentMLAdapter(self.mzqc_exporter)
+            adapter.process_metadata(self.mzml_ms_df, self.ms_paths)
     
     
     def draw_plots(self) -> None:

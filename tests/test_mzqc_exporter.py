@@ -3,11 +3,14 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
+import pandas as pd
 import pytest
 from mzqc import MZQCFile as qc
 
 from pmultiqc.modules.mzqc_exporter.mzqc_exporter import MzQCExporterModule
 from pmultiqc.modules.mzqc_exporter.maxquant_adapter import MaxQuantAdapter
+from pmultiqc.modules.mzqc_exporter.mzidentml_adapter import MzIdentMLAdapter
+from pmultiqc.modules.mzqc_exporter.file_format_utils import FileFormatUtils
 from pmultiqc.modules.maxquant.maxquant import MQMetaData
 
 
@@ -305,53 +308,6 @@ class TestMaxQuantAdapter:
         assert sample2_files[0].fileFormat.accession == "MS:1000584"
         assert sample2_files[0].fileFormat.name == "mzML format"
 
-    def test_filename_to_cv_known_formats(self, maxquant_adapter):
-        """Test filename to CV mapping for known file formats."""
-        test_cases = [
-            ("test.raw", "MS:1000563", "Thermo RAW format"),
-            ("test.mzML", "MS:1000584", "mzML format"),
-            ("test.mzData", "MS:1000564", "PSI mzData format"),
-            ("test.wiff", "MS:1000562", "ABI WIFF format"),
-            ("test.pkl", "MS:1000565", "Micromass PKL format"),
-            ("test.mzXML", "MS:1000566", "ISB mzXML format"),
-            ("test.yep", "MS:1000567", "Bruker/Agilent YEP format"),
-            ("test.dta", "MS:1000613", "Sequest DTA format"),
-            ("test.mzMLb", "MS:1002838", "mzMLb format"),
-        ]
-        
-        for filename, expected_accession, expected_name in test_cases:
-            accession, name = maxquant_adapter._filename_to_cv(filename)
-            assert accession == expected_accession, f"Failed for {filename}"
-            assert name == expected_name, f"Failed for {filename}"
-
-    def test_filename_to_cv_case_insensitive(self, maxquant_adapter):
-        """Test that filename to CV mapping is case insensitive."""
-        test_cases = [
-            ("TEST.RAW", "MS:1000563", "Thermo RAW format"),
-            ("Test.MzML", "MS:1000584", "mzML format"),
-            ("test.WIFF", "MS:1000562", "ABI WIFF format"),
-        ]
-        
-        for filename, expected_accession, expected_name in test_cases:
-            accession, name = maxquant_adapter._filename_to_cv(filename)
-            assert accession == expected_accession, f"Failed for {filename}"
-            assert name == expected_name, f"Failed for {filename}"
-
-    def test_filename_to_cv_unknown_format(self, maxquant_adapter):
-        """Test filename to CV mapping for unknown file formats."""
-        unknown_files = ["test.xyz", "test.unknown", "test"]
-        
-        for filename in unknown_files:
-            accession, name = maxquant_adapter._filename_to_cv(filename)
-            assert accession == "MS:1000560", f"Failed for {filename}"
-            assert name == "mass spectrometer file format", f"Failed for {filename}"
-
-    def test_filename_to_cv_with_path(self, maxquant_adapter):
-        """Test filename to CV mapping with full file paths."""
-        filepath = "/path/to/data/sample.raw"
-        accession, name = maxquant_adapter._filename_to_cv(filepath)
-        assert accession == "MS:1000563"
-        assert name == "Thermo RAW format"
 
 
 class TestMzQCIntegration:
@@ -432,3 +388,201 @@ class TestMzQCIntegration:
             assert len(mzqc_content["controlledVocabularies"]) == 1
             cv = mzqc_content["controlledVocabularies"][0]
             assert cv["name"] == "Proteomics Standards Initiative Mass Spectrometry Ontology"
+
+
+class TestMzIdentMLAdapter:
+    """
+    Test class for MzIdentMLAdapter functionality.
+    
+    These tests verify that the mzIdentML adapter correctly processes
+    metadata and creates appropriate mzQC CV entries.
+    """
+
+    @pytest.fixture
+    def mzqc_exporter(self):
+        """Create a fresh MzQCExporterModule instance for each test."""
+        return MzQCExporterModule()
+
+    @pytest.fixture
+    def mzidentml_adapter(self, mzqc_exporter):
+        """Create a MzIdentMLAdapter instance for each test."""
+        return MzIdentMLAdapter(mzqc_exporter)
+
+    @pytest.fixture
+    def sample_mzml_df(self):
+        """Sample mzML DataFrame for testing."""
+        return pd.DataFrame({
+            'filename': ['sample1', 'sample1', 'sample2', 'sample2', 'sample3'],
+            'scan_number': [1, 2, 1, 2, 1],
+            'retention_time': [10.5, 11.2, 9.8, 10.1, 12.3]
+        })
+
+    @pytest.fixture
+    def sample_ms_paths(self):
+        """Sample MS file paths for testing."""
+        return [
+            "/path/to/sample1.mzML",
+            "/path/to/sample2.raw", 
+            "/path/to/sample3.wiff"
+        ]
+
+    def test_mzidentml_adapter_initialization(self, mzidentml_adapter, mzqc_exporter):
+        """Test that MzIdentMLAdapter initializes correctly."""
+        assert mzidentml_adapter is not None
+        assert mzidentml_adapter.mzqc_exporter == mzqc_exporter
+
+    def test_process_metadata(self, mzidentml_adapter, sample_mzml_df, sample_ms_paths):
+        """Test processing of mzIdentML metadata."""
+        mzidentml_adapter.process_metadata(sample_mzml_df, sample_ms_paths)
+        
+        # Check that run-specific metadata was added for each unique sample
+        unique_samples = set(sample_mzml_df["filename"].unique())
+        assert len(unique_samples) == 3  # sample1, sample2, sample3
+        
+        for sample in unique_samples:
+            assert sample in mzidentml_adapter.mzqc_exporter.run_quality_metadata
+            input_files = mzidentml_adapter.mzqc_exporter.run_quality_metadata[sample]["input_files"]
+            assert len(input_files) == 1
+            assert input_files[0].name == sample
+
+    def test_process_metadata_empty_dataframe(self, mzidentml_adapter):
+        """Test processing with empty DataFrame."""
+        empty_df = pd.DataFrame()
+        ms_paths = ["/path/to/sample1.mzML"]
+        
+        # Should not raise an error
+        mzidentml_adapter.process_metadata(empty_df, ms_paths)
+        
+        # Should not create any metadata
+        assert len(mzidentml_adapter.mzqc_exporter.run_quality_metadata) == 0
+
+    def test_process_metadata_none_dataframe(self, mzidentml_adapter):
+        """Test processing with None DataFrame."""
+        ms_paths = ["/path/to/sample1.mzML"]
+        
+        # Should not raise an error
+        mzidentml_adapter.process_metadata(None, ms_paths)
+        
+        # Should not create any metadata
+        assert len(mzidentml_adapter.mzqc_exporter.run_quality_metadata) == 0
+
+    def test_create_input_file_entries(self, mzidentml_adapter, sample_mzml_df, sample_ms_paths):
+        """Test creation of input file CV entries."""
+        mzidentml_adapter._create_input_file_entries(sample_mzml_df, sample_ms_paths)
+        
+        # Check sample1 (mzML format)
+        sample1_files = mzidentml_adapter.mzqc_exporter.run_quality_metadata["sample1"]["input_files"]
+        assert len(sample1_files) == 1
+        assert sample1_files[0].name == "sample1"
+        assert sample1_files[0].location == "/path/to/sample1.mzML"
+        assert sample1_files[0].fileFormat.accession == "MS:1000584"
+        assert sample1_files[0].fileFormat.name == "mzML format"
+        
+        # Check sample2 (RAW format)
+        sample2_files = mzidentml_adapter.mzqc_exporter.run_quality_metadata["sample2"]["input_files"]
+        assert len(sample2_files) == 1
+        assert sample2_files[0].name == "sample2"
+        assert sample2_files[0].location == "/path/to/sample2.raw"
+        assert sample2_files[0].fileFormat.accession == "MS:1000563"
+        assert sample2_files[0].fileFormat.name == "Thermo RAW format"
+        
+        # Check sample3 (WIFF format)
+        sample3_files = mzidentml_adapter.mzqc_exporter.run_quality_metadata["sample3"]["input_files"]
+        assert len(sample3_files) == 1
+        assert sample3_files[0].name == "sample3"
+        assert sample3_files[0].location == "/path/to/sample3.wiff"
+        assert sample3_files[0].fileFormat.accession == "MS:1000562"
+        assert sample3_files[0].fileFormat.name == "ABI WIFF format"
+
+    def test_find_sample_path(self, mzidentml_adapter):
+        """Test finding sample paths."""
+        ms_paths = [
+            "/path/to/sample1.mzML",
+            "/path/to/sample2_extra.raw",
+            "/path/to/different_sample3.wiff"
+        ]
+        
+        # Test exact match
+        path = mzidentml_adapter._find_sample_path("sample1", ms_paths)
+        assert path == "/path/to/sample1.mzML"
+        
+        # Test prefix match
+        path = mzidentml_adapter._find_sample_path("sample2", ms_paths)
+        assert path == "/path/to/sample2_extra.raw"
+        
+        # Test no match
+        path = mzidentml_adapter._find_sample_path("nonexistent", ms_paths)
+        assert path is None
+
+
+
+class TestFileFormatUtils:
+    """
+    Test class for FileFormatUtils functionality.
+    
+    These tests verify that the file format utility correctly maps
+    file extensions to PSI-MS CV terms.
+    """
+
+    def test_filename_to_cv_known_formats(self):
+        """Test filename to CV mapping for known file formats."""
+        test_cases = [
+            ("test.raw", "MS:1000563", "Thermo RAW format"),
+            ("test.mzML", "MS:1000584", "mzML format"),
+            ("test.mzData", "MS:1000564", "PSI mzData format"),
+            ("test.wiff", "MS:1000562", "ABI WIFF format"),
+            ("test.pkl", "MS:1000565", "Micromass PKL format"),
+            ("test.mzXML", "MS:1000566", "ISB mzXML format"),
+            ("test.yep", "MS:1000567", "Bruker/Agilent YEP format"),
+            ("test.dta", "MS:1000613", "Sequest DTA format"),
+            ("test.mzMLb", "MS:1002838", "mzMLb format"),
+        ]
+        
+        for filename, expected_accession, expected_name in test_cases:
+            accession, name = FileFormatUtils.filename_to_cv(filename)
+            assert accession == expected_accession, f"Failed for {filename}"
+            assert name == expected_name, f"Failed for {filename}"
+
+    def test_filename_to_cv_case_insensitive(self):
+        """Test that filename to CV mapping is case insensitive."""
+        test_cases = [
+            ("TEST.RAW", "MS:1000563", "Thermo RAW format"),
+            ("Test.MzML", "MS:1000584", "mzML format"),
+            ("test.WIFF", "MS:1000562", "ABI WIFF format"),
+        ]
+        
+        for filename, expected_accession, expected_name in test_cases:
+            accession, name = FileFormatUtils.filename_to_cv(filename)
+            assert accession == expected_accession, f"Failed for {filename}"
+            assert name == expected_name, f"Failed for {filename}"
+
+    def test_filename_to_cv_unknown_format(self):
+        """Test filename to CV mapping for unknown file formats."""
+        unknown_files = ["test.xyz", "test.unknown", "test"]
+        
+        for filename in unknown_files:
+            accession, name = FileFormatUtils.filename_to_cv(filename)
+            assert accession == "MS:1000560", f"Failed for {filename}"
+            assert name == "mass spectrometer file format", f"Failed for {filename}"
+
+    def test_filename_to_cv_empty_or_none(self):
+        """Test filename to CV mapping with empty or None input."""
+        test_cases = ["", None]
+        
+        for filename in test_cases:
+            accession, name = FileFormatUtils.filename_to_cv(filename)
+            assert accession == "MS:1000560"
+            assert name == "mass spectrometer file format"
+
+    def test_filename_to_cv_with_path(self):
+        """Test filename to CV mapping with full file paths."""
+        test_cases = [
+            ("/path/to/data/sample.raw", "MS:1000563", "Thermo RAW format"),
+            ("/path/to/data/sample.mzML", "MS:1000584", "mzML format"),
+            ("C:\\data\\sample.wiff", "MS:1000562", "ABI WIFF format"),
+        ]
+        
+        for filepath, expected_accession, expected_name in test_cases:
+            accession, name = FileFormatUtils.filename_to_cv(filepath)
+            assert accession == expected_accession, f"Failed for {filepath}"
+            assert name == expected_name, f"Failed for {filepath}"
