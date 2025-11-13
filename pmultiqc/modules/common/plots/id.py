@@ -397,7 +397,7 @@ def draw_quantms_identification(
     
     # Add protein ID count metrics to mzQC export
     if mzqc_export is not None:
-        mzqc_export.add_protein_id_count(protein_count)
+        mzqc_export.metrics.add_protein_id_count(protein_count)
 
     add_sub_section(
         sub_section=sub_sections,
@@ -424,7 +424,7 @@ def draw_quantms_identification(
     
     # Add peptide ID count metrics to mzQC export
     if mzqc_export is not None:
-        mzqc_export.add_peptide_id_count(peptide_count)
+        mzqc_export.metrics.add_peptide_id_count(peptide_count)
 
     add_sub_section(
         sub_section=sub_sections,

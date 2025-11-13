@@ -9,9 +9,7 @@ from mzqc import MZQCFile as qc
 from multiqc import config
 from multiqc.plots.bargraph import InputDatasetT
 
-# define common metric units
-metric_unit_count = {"accession": "UO:0000189",
-                     "name": "count unit"}
+from pmultiqc.modules.mzqc_exporter.quality_metrics import QualityMetrics
 
 class MzQCExporterModule():
 
@@ -21,8 +19,11 @@ class MzQCExporterModule():
 
         self.run_quality_base_metadata = []   # metadata, which should be applied to each runquality (e.g. inputfile from FASTA filenames)
         self.run_quality_metrics = {}   # intermediate store for lists of run_qualities per sample
-        self.run_quality_metadata = {}  # intermediate store for metadata per sample: each has a dict 
+        self.run_quality_metadata = {}  # intermediate store for metadata per sample: each has a dict
                                         # with the keys 'input_files' and 'analysis_software', values are lists of these
+        
+        # Initialize quality metrics as a member
+        self.metrics = QualityMetrics(self)
 
  
     def create_export(self):
@@ -111,39 +112,3 @@ class MzQCExporterModule():
             self.run_quality_metadata[label]['analysis_software'].append(metadata)
     
 
-    def _add_count_metric_for_run_qualities(self, accession: str, name: str, data: Union[InputDatasetT, Sequence[InputDatasetT]]):
-        # data should be a mapping from "file name" to "categories -> values"
-        for label, sample_data in data.items():
-            metric_count = None
-            if isinstance(sample_data, Mapping):
-                # add up the counts for all categories
-                metric_count = sum(x for x in sample_data.values())
-            else:
-                # try to cast to int
-                metric_count = int(sample_data)
-
-            # create a QualityMetric for this sample
-            qm = qc.QualityMetric(accession=accession,
-                              name=name,
-                              value=metric_count,     
-                              unit=metric_unit_count)
-            
-            self.add_metric_to_run_quality(label=label, qm=qm)
-
-    def add_peptide_id_count(self, data: Union[InputDatasetT, Sequence[InputDatasetT]]):
-        """
-        Add peptide identification count metrics to mzQC export.
-        
-        Args:
-            data: Peptide count data mapping from sample names to counts
-        """
-        self._add_count_metric_for_run_qualities("MS:1003250", "count of identified peptidoforms", data)
-
-    def add_protein_id_count(self, data: Union[InputDatasetT, Sequence[InputDatasetT]]):
-        """
-        Add protein identification count metrics to mzQC export.
-        
-        Args:
-            data: Protein count data mapping from sample names to counts
-        """
-        self._add_count_metric_for_run_qualities("MS:1002404", "count of identified proteins", data)

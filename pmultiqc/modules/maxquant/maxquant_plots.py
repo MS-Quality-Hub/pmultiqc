@@ -413,7 +413,7 @@ def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data, mzqc_expo
     
     # Add peptide ID count metrics to mzQC export
     if mzqc_export is not None:
-        mzqc_export.add_peptide_id_count(peptide_id_count_data["plot_data"])
+        mzqc_export.metrics.add_peptide_id_count(peptide_id_count_data["plot_data"])
 
 
     add_sub_section(
@@ -466,7 +466,7 @@ def draw_evidence_protein_group_count(sub_section, protein_group_count_data, mzq
     
     # Add protein ID count metrics to mzQC export
     if mzqc_export is not None:
-        mzqc_export.add_protein_id_count(protein_group_count_data["plot_data"])
+        mzqc_export.metrics.add_protein_id_count(protein_group_count_data["plot_data"])
 
     add_sub_section(
         sub_section=sub_section,

@@ -11,6 +11,7 @@ from pmultiqc.modules.mzqc_exporter.mzqc_exporter import MzQCExporterModule
 from pmultiqc.modules.mzqc_exporter.maxquant_adapter import MaxQuantAdapter
 from pmultiqc.modules.mzqc_exporter.mzidentml_adapter import MzIdentMLAdapter
 from pmultiqc.modules.mzqc_exporter.file_format_utils import FileFormatUtils
+from pmultiqc.modules.mzqc_exporter.quality_metrics import QualityMetrics
 from pmultiqc.modules.maxquant.maxquant import MQMetaData
 
 
@@ -52,6 +53,9 @@ class TestMzQCExporterModule:
         assert mzqc_exporter.run_quality_base_metadata == []
         assert mzqc_exporter.run_quality_metrics == {}
         assert mzqc_exporter.run_quality_metadata == {}
+        # Test that metrics member is initialized
+        assert hasattr(mzqc_exporter, 'metrics')
+        assert isinstance(mzqc_exporter.metrics, QualityMetrics)
 
     def test_create_empty_run(self, mzqc_exporter):
         """Test that _create_empty_run initializes run data correctly."""
@@ -129,42 +133,6 @@ class TestMzQCExporterModule:
         assert len(mzqc_exporter.run_quality_metadata[label]['analysis_software']) == 1
         assert mzqc_exporter.run_quality_metadata[label]['analysis_software'][0] == analysis_software
 
-    def test_add_peptide_id_count(self, mzqc_exporter, sample_peptide_data):
-        """Test adding peptide identification count metrics."""
-        mzqc_exporter.add_peptide_id_count(sample_peptide_data)
-        
-        # Check that metrics were added for all samples
-        assert "sample1" in mzqc_exporter.run_quality_metrics
-        assert "sample2" in mzqc_exporter.run_quality_metrics
-        assert "sample3" in mzqc_exporter.run_quality_metrics
-        
-        # Check sample1 (mapping data)
-        sample1_metrics = mzqc_exporter.run_quality_metrics["sample1"]
-        assert len(sample1_metrics) == 1
-        assert sample1_metrics[0].accession == "MS:1003250"
-        assert sample1_metrics[0].name == "count of identified peptidoforms"
-        assert sample1_metrics[0].value == 1800  # sum of peptides + proteins
-        
-        # Check sample3 (simple integer)
-        sample3_metrics = mzqc_exporter.run_quality_metrics["sample3"]
-        assert len(sample3_metrics) == 1
-        assert sample3_metrics[0].value == 1800
-
-    def test_add_protein_id_count(self, mzqc_exporter, sample_protein_data):
-        """Test adding protein identification count metrics."""
-        mzqc_exporter.add_protein_id_count(sample_protein_data)
-        
-        # Check that metrics were added for all samples
-        assert "sample1" in mzqc_exporter.run_quality_metrics
-        assert "sample2" in mzqc_exporter.run_quality_metrics
-        assert "sample3" in mzqc_exporter.run_quality_metrics
-        
-        # Check sample1
-        sample1_metrics = mzqc_exporter.run_quality_metrics["sample1"]
-        assert len(sample1_metrics) == 1
-        assert sample1_metrics[0].accession == "MS:1002404"
-        assert sample1_metrics[0].name == "count of identified proteins"
-        assert sample1_metrics[0].value == 300
 
     @patch('pmultiqc.modules.mzqc_exporter.mzqc_exporter.config')
     def test_create_export(self, mock_config, mzqc_exporter, sample_peptide_data):
@@ -173,8 +141,8 @@ class TestMzQCExporterModule:
         with tempfile.TemporaryDirectory() as temp_dir:
             mock_config.output_dir = temp_dir
             
-            # Add some test data
-            mzqc_exporter.add_peptide_id_count(sample_peptide_data)
+            # Add some test data using the metrics member
+            mzqc_exporter.metrics.add_peptide_id_count(sample_peptide_data)
             
             # Add base metadata
             analysis_software = qc.AnalysisSoftware(
@@ -345,9 +313,9 @@ class TestMzQCIntegration:
             # Process metadata
             adapter.process_metadata(metadata)
             
-            # Add quality metrics
-            mzqc_exporter.add_peptide_id_count(peptide_data)
-            mzqc_exporter.add_protein_id_count(protein_data)
+            # Add quality metrics using the metrics member
+            mzqc_exporter.metrics.add_peptide_id_count(peptide_data)
+            mzqc_exporter.metrics.add_protein_id_count(protein_data)
             
             # Create export
             mzqc_exporter.create_export()
@@ -586,3 +554,154 @@ class TestFileFormatUtils:
             accession, name = FileFormatUtils.filename_to_cv(filepath)
             assert accession == expected_accession, f"Failed for {filepath}"
             assert name == expected_name, f"Failed for {filepath}"
+
+
+class TestQualityMetrics:
+    """
+    Test class for QualityMetrics functionality.
+    
+    These tests verify that the quality metrics module correctly creates
+    and adds quality metrics to the mzQC exporter.
+    """
+
+    @pytest.fixture
+    def mzqc_exporter(self):
+        """Create a fresh MzQCExporterModule instance for each test."""
+        return MzQCExporterModule()
+
+    @pytest.fixture
+    def quality_metrics(self, mzqc_exporter):
+        """Create a QualityMetrics instance for each test."""
+        return QualityMetrics(mzqc_exporter)
+
+    @pytest.fixture
+    def sample_peptide_data(self):
+        """Sample peptide count data for testing."""
+        return {
+            "sample1": {"peptides": 1500, "proteins": 300},
+            "sample2": {"peptides": 1200, "proteins": 250},
+            "sample3": 1800  # Test simple integer value
+        }
+
+    @pytest.fixture
+    def sample_protein_data(self):
+        """Sample protein count data for testing."""
+        return {
+            "sample1": 300,
+            "sample2": 250,
+            "sample3": 350
+        }
+
+    def test_quality_metrics_initialization(self, quality_metrics, mzqc_exporter):
+        """Test that QualityMetrics initializes correctly."""
+        assert quality_metrics is not None
+        assert quality_metrics.mzqc_exporter == mzqc_exporter
+
+    def test_add_peptide_id_count(self, quality_metrics, sample_peptide_data):
+        """Test adding peptide identification count metrics."""
+        quality_metrics.add_peptide_id_count(sample_peptide_data)
+        
+        # Check that metrics were added for all samples
+        assert "sample1" in quality_metrics.mzqc_exporter.run_quality_metrics
+        assert "sample2" in quality_metrics.mzqc_exporter.run_quality_metrics
+        assert "sample3" in quality_metrics.mzqc_exporter.run_quality_metrics
+        
+        # Check sample1 (mapping data)
+        sample1_metrics = quality_metrics.mzqc_exporter.run_quality_metrics["sample1"]
+        assert len(sample1_metrics) == 1
+        assert sample1_metrics[0].accession == "MS:1003250"
+        assert sample1_metrics[0].name == "count of identified peptidoforms"
+        assert sample1_metrics[0].value == 1800  # sum of peptides + proteins
+        
+        # Check sample3 (simple integer)
+        sample3_metrics = quality_metrics.mzqc_exporter.run_quality_metrics["sample3"]
+        assert len(sample3_metrics) == 1
+        assert sample3_metrics[0].value == 1800
+
+    def test_add_protein_id_count(self, quality_metrics, sample_protein_data):
+        """Test adding protein identification count metrics."""
+        quality_metrics.add_protein_id_count(sample_protein_data)
+        
+        # Check that metrics were added for all samples
+        assert "sample1" in quality_metrics.mzqc_exporter.run_quality_metrics
+        assert "sample2" in quality_metrics.mzqc_exporter.run_quality_metrics
+        assert "sample3" in quality_metrics.mzqc_exporter.run_quality_metrics
+        
+        # Check sample1
+        sample1_metrics = quality_metrics.mzqc_exporter.run_quality_metrics["sample1"]
+        assert len(sample1_metrics) == 1
+        assert sample1_metrics[0].accession == "MS:1002404"
+        assert sample1_metrics[0].name == "count of identified proteins"
+        assert sample1_metrics[0].value == 300
+
+    def test_add_count_metric_for_run_qualities_mapping_data(self, quality_metrics):
+        """Test _add_count_metric_for_run_qualities with mapping data."""
+        data = {
+            "sample1": {"category1": 100, "category2": 200},
+            "sample2": {"category1": 150, "category2": 250}
+        }
+        
+        quality_metrics._add_count_metric_for_run_qualities(
+            "MS:1000000", "test metric", data
+        )
+        
+        # Check sample1
+        sample1_metrics = quality_metrics.mzqc_exporter.run_quality_metrics["sample1"]
+        assert len(sample1_metrics) == 1
+        assert sample1_metrics[0].accession == "MS:1000000"
+        assert sample1_metrics[0].name == "test metric"
+        assert sample1_metrics[0].value == 300  # sum of 100 + 200
+        
+        # Check sample2
+        sample2_metrics = quality_metrics.mzqc_exporter.run_quality_metrics["sample2"]
+        assert len(sample2_metrics) == 1
+        assert sample2_metrics[0].value == 400  # sum of 150 + 250
+
+    def test_add_count_metric_for_run_qualities_simple_data(self, quality_metrics):
+        """Test _add_count_metric_for_run_qualities with simple integer data."""
+        data = {
+            "sample1": 500,
+            "sample2": 750
+        }
+        
+        quality_metrics._add_count_metric_for_run_qualities(
+            "MS:1000001", "simple test metric", data
+        )
+        
+        # Check sample1
+        sample1_metrics = quality_metrics.mzqc_exporter.run_quality_metrics["sample1"]
+        assert len(sample1_metrics) == 1
+        assert sample1_metrics[0].accession == "MS:1000001"
+        assert sample1_metrics[0].name == "simple test metric"
+        assert sample1_metrics[0].value == 500
+        
+        # Check sample2
+        sample2_metrics = quality_metrics.mzqc_exporter.run_quality_metrics["sample2"]
+        assert len(sample2_metrics) == 1
+        assert sample2_metrics[0].value == 750
+
+    def test_quality_metrics_unit_format(self, quality_metrics, sample_protein_data):
+        """Test that quality metrics have the correct unit format."""
+        quality_metrics.add_protein_id_count(sample_protein_data)
+        
+        sample1_metrics = quality_metrics.mzqc_exporter.run_quality_metrics["sample1"]
+        metric = sample1_metrics[0]
+        
+        assert hasattr(metric, 'unit')
+        assert metric.unit["unit_accession"] == "UO:0000189"
+        assert metric.unit["unit_name"] == "count unit"
+
+    def test_mzqc_exporter_has_metrics_member(self, mzqc_exporter, sample_peptide_data):
+        """Test that MzQCExporterModule has a metrics member."""
+        # Test that the exporter has a metrics instance
+        assert hasattr(mzqc_exporter, 'metrics')
+        assert isinstance(mzqc_exporter.metrics, QualityMetrics)
+        
+        # Test that calling methods on metrics member adds to exporter
+        mzqc_exporter.metrics.add_peptide_id_count(sample_peptide_data)
+        
+        # Verify the metrics were added
+        assert "sample1" in mzqc_exporter.run_quality_metrics
+        sample1_metrics = mzqc_exporter.run_quality_metrics["sample1"]
+        assert len(sample1_metrics) == 1
+        assert sample1_metrics[0].accession == "MS:1003250"
