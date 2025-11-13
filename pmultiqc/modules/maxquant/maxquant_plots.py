@@ -404,15 +404,17 @@ def draw_evidence_peptide_id_count(sub_section, peptide_id_count_data, mzqc_expo
         "ylab": "Count",
     }
 
-    bar_html = mzqc_exporter.plot_bargraph_and_add_mzqc(
+    bar_html = bargraph.plot(
         data=peptide_id_count_data["plot_data"],
         cats=peptide_id_count_data["cats"],
         pconfig=draw_config,
-        mzqcexporter=mzqc_export,
-        accession="MS:1003250",
     )
-
     bar_html = remove_subtitle(bar_html)
+    
+    # Add peptide ID count metrics to mzQC export
+    if mzqc_export is not None:
+        mzqc_export.add_peptide_id_count(peptide_id_count_data["plot_data"])
+
 
     add_sub_section(
         sub_section=sub_section,
@@ -454,15 +456,17 @@ def draw_evidence_protein_group_count(sub_section, protein_group_count_data, mzq
         "ylab": "Count",
     }
 
-    bar_html = mzqc_exporter.plot_bargraph_and_add_mzqc(
+    bar_html = bargraph.plot(
         data=protein_group_count_data["plot_data"],
         cats=protein_group_count_data["cats"],
         pconfig=draw_config,
-        mzqcexporter=mzqc_export,
-        accession="MS:1002404",
     )
-
     bar_html = remove_subtitle(bar_html)
+    
+    
+    # Add protein ID count metrics to mzQC export
+    if mzqc_export is not None:
+        mzqc_export.add_protein_id_count(protein_group_count_data["plot_data"])
 
     add_sub_section(
         sub_section=sub_section,

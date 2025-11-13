@@ -111,19 +111,7 @@ class MzQCExporterModule():
             self.run_quality_metadata[label]['analysis_software'].append(metadata)
     
 
-    def add_metric(self,
-                   data: Union[InputDatasetT, Sequence[InputDatasetT]],
-                   accession: str = "",
-                   ) -> bool | None:
-        if accession == "MS:1002404":
-            self.add_count_metric_per_sample("MS:1002404", "count of identified proteins", data)
-        elif accession == "MS:1003250":
-            self.add_count_metric_per_sample("MS:1003250", "count of identified peptidoforms", data)
-        
-        return True
-    
-
-    def add_count_metric_per_sample(self, accession: str, name: str, data: Union[InputDatasetT, Sequence[InputDatasetT]]):
+    def _add_count_metric_for_run_qualities(self, accession: str, name: str, data: Union[InputDatasetT, Sequence[InputDatasetT]]):
         # data should be a mapping from "file name" to "categories -> values"
         for label, sample_data in data.items():
             metric_count = None
@@ -141,3 +129,21 @@ class MzQCExporterModule():
                               unit=metric_unit_count)
             
             self.add_metric_to_run_quality(label=label, qm=qm)
+
+    def add_peptide_id_count(self, data: Union[InputDatasetT, Sequence[InputDatasetT]]):
+        """
+        Add peptide identification count metrics to mzQC export.
+        
+        Args:
+            data: Peptide count data mapping from sample names to counts
+        """
+        self._add_count_metric_for_run_qualities("MS:1003250", "count of identified peptidoforms", data)
+
+    def add_protein_id_count(self, data: Union[InputDatasetT, Sequence[InputDatasetT]]):
+        """
+        Add protein identification count metrics to mzQC export.
+        
+        Args:
+            data: Protein count data mapping from sample names to counts
+        """
+        self._add_count_metric_for_run_qualities("MS:1002404", "count of identified proteins", data)

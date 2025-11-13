@@ -389,13 +389,15 @@ def draw_quantms_identification(
         return
     
 
-    bar_html = mzqc_exporter.plot_bargraph_and_add_mzqc(
+    bar_html = bargraph.plot(
         data=protein_count,
         pconfig=draw_config,
-        mzqcexporter=mzqc_export,
-        accession="MS:1002404",
     )
     bar_html = remove_subtitle(bar_html)
+    
+    # Add protein ID count metrics to mzQC export
+    if mzqc_export is not None:
+        mzqc_export.add_protein_id_count(protein_count)
 
     add_sub_section(
         sub_section=sub_sections,
@@ -414,13 +416,15 @@ def draw_quantms_identification(
         "tt_decimals": 0,
         "ylab": "Count",
     }
-    bar_html = mzqc_exporter.plot_bargraph_and_add_mzqc(
+    bar_html = bargraph.plot(
         data=peptide_count,
         pconfig=draw_config,
-        mzqcexporter=mzqc_export,
-        accession="MS:1003250",
     )
     bar_html = remove_subtitle(bar_html)
+    
+    # Add peptide ID count metrics to mzQC export
+    if mzqc_export is not None:
+        mzqc_export.add_peptide_id_count(peptide_count)
 
     add_sub_section(
         sub_section=sub_sections,
