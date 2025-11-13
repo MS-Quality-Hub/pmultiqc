@@ -10,8 +10,8 @@ from multiqc import config
 from multiqc.plots.bargraph import InputDatasetT
 
 # define common metric units
-metric_unit_count = {"unit_accession": "UO:0000189",
-                     "unit_name": "count unit"}
+metric_unit_count = {"accession": "UO:0000189",
+                     "name": "count unit"}
 
 class MzQCExporterModule():
 
