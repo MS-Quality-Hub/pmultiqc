@@ -366,7 +366,7 @@ def draw_quantms_identification(
         quantms_missed_cleavages=None,
         quantms_modified=None,
         identified_msms_spectra=None,
-        mzqc_export: MzQCExporterModule = None
+        mzqc_export: MzQCExporterModule|None = None
 ):
     draw_config = {
         "id": "protein_group_count",

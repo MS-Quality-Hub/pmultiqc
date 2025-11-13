@@ -162,11 +162,11 @@ class MzIdentMLModule(BasePMultiqcModule):
 
                 self.mzid_cal_heat_map_score(mzidentml_df)
         
-        self.extract_mzqc_baseinfos()
+        self._extract_metadata()
         return True
     
 
-    def extract_mzqc_baseinfos(self):
+    def _extract_metadata(self):
         """
         This function extracts some infomration which is not applied by the plotting, but is useful for the mzQC generation
         """

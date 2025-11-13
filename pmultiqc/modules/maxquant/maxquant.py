@@ -97,14 +97,14 @@ class MaxQuantModule(BasePMultiqcModule):
             "maxquant_heatmap": maxquant_heatmap,
         }
 
-        self.extract_mzqc_baseinfos()
+        self._extract_metadata()
 
         return bool(self.mq_results)
     
  
-    def extract_mzqc_baseinfos(self):
+    def _extract_metadata(self):
         """
-        This function extracts some information which is not later applied by the plotting, but is useful for the mzQC generation
+        Extract some useful information, used in various places
         """
         if self.mzqc_exporter is not None:
             # extract some parameters
@@ -114,9 +114,10 @@ class MaxQuantModule(BasePMultiqcModule):
             combined_data = mqpar_data.combine(parameter_data, self.log) ## useful in case one of the files is missing;
             
             # Use MaxQuantAdapter to handle mzQC CV entry creation
-            from pmultiqc.modules.mzqc_exporter.maxquant_adapter import MaxQuantAdapter
-            adapter = MaxQuantAdapter(self.mzqc_exporter)
-            adapter.process_metadata(combined_data)
+            if self.mzqc_exporter is not None:
+                from pmultiqc.modules.mzqc_exporter.maxquant_adapter import MaxQuantAdapter
+                adapter = MaxQuantAdapter(self.mzqc_exporter)
+                adapter.process_metadata(combined_data)
 
             # for the report itself:
             self.software_version = combined_data.version
@@ -566,7 +567,7 @@ class MaxQuantModule(BasePMultiqcModule):
             self.sub_sections["identification"],
             self.mq_results["get_evidence_dicts"].get("protein_group_count"),
             self.mzqc_exporter,
-            error_name="draw_evidence_protein_group_count",
+            error_name="draw_evidence_protein_group_count"
         )
 
         # Oversampling
